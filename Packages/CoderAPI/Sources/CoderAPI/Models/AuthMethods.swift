@@ -37,8 +37,20 @@ public struct AuthMethods: Sendable, Hashable, Codable {
 
         enum CodingKeys: String, CodingKey {
             case enabled
-            case signInText = "signInText"
+            case signInText
             case iconURL = "iconUrl"
+        }
+
+        // Coder returns iconUrl as an empty string ("") when no icon is
+        // configured. Foundation's URL(string: "") returns nil and the
+        // synthesized Codable conformance throws .dataCorrupted on a nil URL.
+        // Use LenientURL to degrade gracefully — empty/malformed URLs become nil.
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            self.enabled = try container.decode(Bool.self, forKey: .enabled)
+            let signIn = try container.decodeIfPresent(String.self, forKey: .signInText)
+            self.signInText = (signIn?.isEmpty == false) ? signIn : nil
+            self.iconURL = try LenientURL.decode(from: container, forKey: .iconURL)
         }
     }
 

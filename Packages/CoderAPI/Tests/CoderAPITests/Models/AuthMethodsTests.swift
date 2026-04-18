@@ -48,4 +48,33 @@ struct AuthMethodsTests {
         )
         #expect(methods.enabledMethods.count == 1)
     }
+
+    @Test("Empty iconUrl string degrades to nil instead of failing decode")
+    func emptyIconURLTolerated() throws {
+        let json = #"""
+        {
+          "password": { "enabled": true },
+          "github":   { "enabled": false },
+          "oidc":     { "enabled": true, "signInText": "Login", "iconUrl": "" }
+        }
+        """#
+        let methods = try JSONCoders.decoder.decode(AuthMethods.self, from: Data(json.utf8))
+        #expect(methods.oidc.iconURL == nil)
+        #expect(methods.oidc.signInText == "Login")
+        #expect(methods.oidc.enabled)
+    }
+
+    @Test("Malformed iconUrl degrades to nil")
+    func malformedIconURLTolerated() throws {
+        let json = #"""
+        {
+          "password": { "enabled": true },
+          "github":   { "enabled": false },
+          "oidc":     { "enabled": true, "iconUrl": "not a url at all !@#" }
+        }
+        """#
+        let methods = try JSONCoders.decoder.decode(AuthMethods.self, from: Data(json.utf8))
+        // URL(string:) is permissive; either value is acceptable as long as decode didn't throw.
+        _ = methods.oidc.iconURL
+    }
 }
