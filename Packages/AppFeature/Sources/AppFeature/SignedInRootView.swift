@@ -4,6 +4,7 @@ import CoderAPI
 import ComposableArchitecture
 import DesignSystem
 import SwiftUI
+import TerminalFeature
 import WorkspaceFeature
 
 public struct SignedInRootView: View {
@@ -34,7 +35,14 @@ public struct SignedInRootView: View {
                 WTColor.background.ignoresSafeArea()
                 if let detailStore = store.scope(state: \.detail, action: \.detail) {
                     NavigationStack {
-                        WorkspaceDetailView(store: detailStore)
+                        WorkspaceDetailView(store: detailStore) { agent in
+                            store.send(.openTerminal(agent))
+                        }
+                        .navigationDestination(
+                            item: $store.scope(state: \.terminal, action: \.terminal)
+                        ) { terminalStore in
+                            TerminalSessionView(store: terminalStore)
+                        }
                     }
                 } else {
                     WTEmptyStateView(

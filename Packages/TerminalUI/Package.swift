@@ -1,4 +1,4 @@
-    // swift-tools-version: 6.0
+// swift-tools-version: 6.0
 import PackageDescription
 
 let package = Package(
@@ -9,11 +9,15 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../DesignSystem"),
+        .package(url: "https://github.com/migueldeicaza/SwiftTerm", from: "1.2.0"),
     ],
     targets: [
         .target(
             name: "TerminalUI",
-            dependencies: ["DesignSystem"]
+            dependencies: [
+                "DesignSystem",
+                .product(name: "SwiftTerm", package: "SwiftTerm"),
+            ]
         ),
         .testTarget(
             name: "TerminalUITests",

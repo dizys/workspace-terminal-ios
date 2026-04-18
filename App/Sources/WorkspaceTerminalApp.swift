@@ -3,6 +3,7 @@ import Auth
 import CoderAPI
 import ComposableArchitecture
 import SwiftUI
+import TerminalFeature
 import WorkspaceFeature
 
 @main
@@ -26,6 +27,10 @@ struct WorkspaceTerminalApp: App {
             )
         }
 
+        let tokenProvider = AuthenticatedSessionTokenProvider { [deploymentStore] in
+            (try? await deploymentStore.activeDeployment())?.token
+        }
+
         let oidcSession = LiveWebAuthSession {
             UIApplication.shared.connectedScenes
                 .compactMap { $0 as? UIWindowScene }
@@ -36,6 +41,7 @@ struct WorkspaceTerminalApp: App {
         store = withDependencies {
             $0.deploymentStore = DeploymentStoreDependency(deploymentStore)
             $0.authenticatedAPIClient = apiClientProvider
+            $0.authenticatedSessionToken = tokenProvider
             $0.coderAPIClientFactory = .init { deployment, tls in
                 LiveCoderAPIClient(
                     deployment: deployment,

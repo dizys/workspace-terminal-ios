@@ -2,6 +2,7 @@ import Auth
 import CoderAPI
 import ComposableArchitecture
 import Foundation
+import TerminalFeature
 import WorkspaceFeature
 
 /// State and reducer for the signed-in surface: workspace list + selected
@@ -15,6 +16,7 @@ public struct SignedInFeature {
         public var selectedWorkspaceID: UUID?
         public var detail: WorkspaceDetailFeature.State?
         public var isSettingsPresented: Bool = false
+        @Presents public var terminal: TerminalFeature.State?
 
         public init(deployment: StoredDeployment) {
             self.deployment = deployment
@@ -25,6 +27,8 @@ public struct SignedInFeature {
     public enum Action: Equatable {
         case workspaceList(WorkspaceListFeature.Action)
         case detail(WorkspaceDetailFeature.Action)
+        case openTerminal(WorkspaceAgent)
+        case terminal(PresentationAction<TerminalFeature.Action>)
         case settingsButtonTapped
         case settingsDismissed
         case signOutTapped
@@ -54,6 +58,16 @@ public struct SignedInFeature {
             case .detail:
                 return .none
 
+            case let .openTerminal(agent):
+                state.terminal = TerminalFeature.State(
+                    agent: agent,
+                    deployment: state.deployment.deployment
+                )
+                return .none
+
+            case .terminal:
+                return .none
+
             case .settingsButtonTapped:
                 state.isSettingsPresented = true
                 return .none
@@ -76,6 +90,9 @@ public struct SignedInFeature {
         }
         .ifLet(\.detail, action: \.detail) {
             WorkspaceDetailFeature()
+        }
+        .ifLet(\.$terminal, action: \.terminal) {
+            TerminalFeature()
         }
     }
 }

@@ -6,9 +6,14 @@ import SwiftUI
 
 public struct WorkspaceDetailView: View {
     @Bindable public var store: StoreOf<WorkspaceDetailFeature>
+    private let onAgentTap: (WorkspaceAgent) -> Void
 
-    public init(store: StoreOf<WorkspaceDetailFeature>) {
+    public init(
+        store: StoreOf<WorkspaceDetailFeature>,
+        onAgentTap: @escaping (WorkspaceAgent) -> Void = { _ in }
+    ) {
         self.store = store
+        self.onAgentTap = onAgentTap
     }
 
     public var body: some View {
@@ -20,7 +25,7 @@ public struct WorkspaceDetailView: View {
                         HeroCard(workspace: workspace, pendingTransition: store.pendingTransition)
                         LifecycleCard(workspace: workspace, store: store)
                         if !store.agents.isEmpty {
-                            AgentsCard(agents: store.agents)
+                            AgentsCard(agents: store.agents, onAgentTap: onAgentTap)
                         }
                         if !store.buildLogs.isEmpty {
                             BuildLogCard(logs: store.buildLogs)
@@ -231,6 +236,7 @@ private struct LifecycleButton: View {
 
 private struct AgentsCard: View {
     let agents: [WorkspaceAgent]
+    let onAgentTap: (WorkspaceAgent) -> Void
 
     var body: some View {
         WTCard {
@@ -243,30 +249,39 @@ private struct AgentsCard: View {
 
                 VStack(spacing: WTSpace.sm) {
                     ForEach(agents) { agent in
-                        HStack(spacing: WTSpace.md) {
-                            WTStatusDot(tone: tone(for: agent.status))
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(agent.name)
-                                    .font(WTFont.bodyEmphasized)
-                                    .foregroundStyle(WTColor.textPrimary)
-                                Text("\(agent.operatingSystem ?? "?") · \(agent.architecture ?? "?")")
-                                    .font(WTFont.caption)
-                                    .foregroundStyle(WTColor.textSecondary)
-                            }
-                            Spacer()
-                            if agent.isDevcontainer {
-                                Text("devcontainer")
-                                    .font(WTFont.caption)
+                        Button { onAgentTap(agent) } label: {
+                            HStack(spacing: WTSpace.md) {
+                                WTStatusDot(tone: tone(for: agent.status))
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(agent.name)
+                                        .font(WTFont.bodyEmphasized)
+                                        .foregroundStyle(WTColor.textPrimary)
+                                    Text("\(agent.operatingSystem ?? "?") · \(agent.architecture ?? "?")")
+                                        .font(WTFont.caption)
+                                        .foregroundStyle(WTColor.textSecondary)
+                                }
+                                Spacer()
+                                if agent.isDevcontainer {
+                                    Text("devcontainer")
+                                        .font(WTFont.caption)
+                                        .foregroundStyle(WTColor.accent)
+                                        .padding(.horizontal, WTSpace.sm)
+                                        .padding(.vertical, 2)
+                                        .background(
+                                            Capsule(style: .continuous)
+                                                .fill(WTColor.accentSoft)
+                                        )
+                                }
+                                Image(systemName: "terminal")
+                                    .font(.system(size: 14, weight: .medium))
                                     .foregroundStyle(WTColor.accent)
-                                    .padding(.horizontal, WTSpace.sm)
-                                    .padding(.vertical, 2)
-                                    .background(
-                                        Capsule(style: .continuous)
-                                            .fill(WTColor.accentSoft)
-                                    )
                             }
+                            .padding(.vertical, WTSpace.xs)
+                            .contentShape(Rectangle())
                         }
-                        .padding(.vertical, WTSpace.xs)
+                        .buttonStyle(.plain)
+                        .disabled(agent.status != .connected)
+                        .opacity(agent.status == .connected ? 1 : 0.5)
                     }
                 }
             }

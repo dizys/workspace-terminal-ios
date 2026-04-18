@@ -65,6 +65,7 @@ let project = Project(
             resources: ["App/Resources/**"],
             dependencies: [
                 .package(product: "AppFeature"),
+                .package(product: "TerminalFeature"),
             ]
         ),
         .target(
