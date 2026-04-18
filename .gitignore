@@ -80,6 +80,11 @@ Carthage/
 *.swo
 *~
 
+# Agent skill installations (per-user, not part of the project)
+.agents/
+.claude/
+skills-lock.json
+
 # Coverage
 *.gcov
 *.gcda

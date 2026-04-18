@@ -5,18 +5,9 @@ public enum Auth {
     public static let callbackURLScheme = "workspaceterminal"
     public static let callbackHost = "auth"
     public static let callbackPath = "/callback"
-}
 
-public enum AuthMethod: Sendable, Hashable {
-    case password
-    case github
-    case oidc(displayName: String, iconURL: URL?)
-}
-
-public struct SessionToken: Sendable, Hashable {
-    public let value: String
-
-    public init(_ value: String) {
-        self.value = value
+    /// Full callback URL for OIDC redirects.
+    public static var callbackURL: URL {
+        URL(string: "\(callbackURLScheme)://\(callbackHost)\(callbackPath)")!
     }
 }

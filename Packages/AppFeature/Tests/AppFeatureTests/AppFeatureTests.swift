@@ -1,44 +1,50 @@
+import Auth
+import CoderAPI
 import ComposableArchitecture
+import Foundation
 import StoreKitClient
 import Testing
 @testable import AppFeature
 
 @Suite("AppFeature smoke")
 struct AppFeatureTests {
-    @Test("Unentitled purchase status routes to paywall")
+    @Test("appLaunched routes to auth when no active deployment + entitled")
     @MainActor
-    func unentitledRoutesToPaywall() async {
+    func launchesToAuth() async {
         let store = TestStore(initialState: AppFeature.State()) {
             AppFeature()
+        } withDependencies: {
+            $0.deploymentStore = DeploymentStoreDependency(
+                LiveDeploymentStore(keychain: InMemoryKeychainClient())
+            )
         }
-        await store.send(.purchaseStatusLoaded(.notPurchased)) {
-            $0.purchaseStatus = .notPurchased
-            $0.stage = .paywall
-        }
+        store.exhaustivity = .off
+        await store.send(.appLaunched)
+        await store.receive(.purchaseStatusLoaded(.purchased(transactionID: 1)))
+        await store.receive(.activeDeploymentLoaded(nil))
+        #expect({ if case .auth = store.state.route { return true } else { return false } }())
     }
 
-    @Test("Entitled purchase status routes to loggedOut (await login)")
+    @Test("appLaunched routes to signedIn when an active deployment exists")
     @MainActor
-    func entitledRoutesToLoggedOut() async {
+    func launchesToSignedIn() async throws {
+        let kc = InMemoryKeychainClient()
+        let live = LiveDeploymentStore(keychain: kc)
+        let stored = StoredDeployment(
+            deployment: Deployment(baseURL: URL(string: "https://x.example.com")!, displayName: "x"),
+            token: SessionToken("tok")
+        )
+        try await live.upsertActive(stored)
+
         let store = TestStore(initialState: AppFeature.State()) {
             AppFeature()
+        } withDependencies: {
+            $0.deploymentStore = DeploymentStoreDependency(live)
         }
-        await store.send(.purchaseStatusLoaded(.purchased(transactionID: 42))) {
-            $0.purchaseStatus = .purchased(transactionID: 42)
-            $0.stage = .loggedOut
-        }
-    }
-
-    @Test("loginCompleted routes to loggedIn")
-    @MainActor
-    func loginCompletedRoutes() async {
-        let store = TestStore(
-            initialState: AppFeature.State(purchaseStatus: .purchased(transactionID: 1), stage: .loggedOut)
-        ) {
-            AppFeature()
-        }
-        await store.send(.loginCompleted) {
-            $0.stage = .loggedIn
-        }
+        store.exhaustivity = .off
+        await store.send(.appLaunched)
+        await store.receive(.purchaseStatusLoaded(.purchased(transactionID: 1)))
+        await store.receive(\.activeDeploymentLoaded)
+        #expect({ if case .signedIn = store.state.route { return true } else { return false } }())
     }
 }

@@ -1,19 +1,11 @@
 import Foundation
 
-/// Public surface of the Coder REST API client.
+/// Public namespace + version banner for the Coder REST API client.
 public enum CoderAPI {
     public static let version = "0.1.0"
-}
 
-/// A Coder deployment a user has signed into.
-public struct Deployment: Sendable, Hashable, Codable, Identifiable {
-    public let id: UUID
-    public let baseURL: URL
-    public let displayName: String
-
-    public init(id: UUID = UUID(), baseURL: URL, displayName: String) {
-        self.id = id
-        self.baseURL = baseURL
-        self.displayName = displayName
+    /// `User-Agent` header sent on every request, including app version + platform.
+    public static func userAgent(appVersion: String, build: String) -> String {
+        "WorkspaceTerminal/\(appVersion) (\(build); iOS) CoderAPI/\(version)"
     }
 }
