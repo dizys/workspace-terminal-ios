@@ -124,7 +124,7 @@ jobs:
       matrix:
         device:
           - "iPhone 17 Pro"
-          - "iPad Pro 13-inch (M4)"
+          - "iPad Pro 13-inch (M5)"
     steps:
       - uses: actions/checkout@v5
       - name: Select Xcode 26.2
