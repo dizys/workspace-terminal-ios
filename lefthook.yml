@@ -22,3 +22,11 @@ commit-msg:
           echo "Types:  feat fix docs style refactor perf test build ci chore revert"
           exit 1
         }
+
+# Until the repo goes public + GitHub Actions is re-enabled, the local
+# pre-push hook is the gate. It runs lint + per-package tests + app build.
+# Skip once with: LEFTHOOK_EXCLUDE=pre-push git push
+pre-push:
+  commands:
+    check:
+      run: bin/check.sh

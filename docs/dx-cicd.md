@@ -34,7 +34,22 @@ open *.xcworkspace
 └── mise.toml
 ```
 
-## Pre-commit (lefthook)
+## Local checks (the gate while the repo is private)
+
+The repo is private until App Store launch, and GitHub Actions is intentionally **disabled** during that window — running CI minutes for a solo project pre-launch is wasted spend. Until then, the gate lives on the developer's machine via:
+
+1. **Pre-commit (lefthook)** — fast: SwiftFormat + SwiftLint on staged files only.
+2. **Pre-push (lefthook)** — slow but thorough: runs `bin/check.sh`, which mirrors the disabled CI workflow (lint + per-package `swift test` + `tuist generate` + `xcodebuild build`).
+3. **Manual** — `bin/check.sh [lint|packages|app|all]` to invoke any subset.
+
+```bash
+bin/check.sh           # everything (~10–15 min cold, faster warm)
+bin/check.sh lint      # ~1s
+bin/check.sh packages  # ~3 min for all 10 packages
+bin/check.sh app       # ~5 min cold (Tuist + xcodebuild)
+```
+
+To bypass the pre-push hook in an emergency: `LEFTHOOK_EXCLUDE=pre-push git push`. Don't make this a habit.
 
 ```yaml
 pre-commit:
@@ -46,9 +61,14 @@ pre-commit:
     swiftlint:
       glob: "*.swift"
       run: swiftlint lint --quiet --strict {staged_files}
+
+pre-push:
+  commands:
+    check:
+      run: bin/check.sh
 ```
 
-## CI (GitHub Actions)
+## CI (GitHub Actions) — currently disabled, re-enable on public launch
 
 - **On PR**:
   - `lint` — SwiftFormat + SwiftLint (strict)

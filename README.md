@@ -49,11 +49,19 @@ tuist generate            # generate Xcode workspace
 open WorkspaceTerminal.xcworkspace
 ```
 
-Pre-commit hooks (formatting + lint) are installed via:
+Install lefthook hooks (pre-commit lint + pre-push check):
 
 ```bash
 lefthook install
 ```
+
+Run the full check locally (lint + per-package tests + app build):
+
+```bash
+bin/check.sh
+```
+
+This mirrors what GitHub Actions used to run. The repo is private and GitHub Actions is disabled until launch; `bin/check.sh` is the gate.
 
 ## Reporting bugs / requesting features
 
