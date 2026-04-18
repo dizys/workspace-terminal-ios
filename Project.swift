@@ -55,6 +55,7 @@ let project = Project(
                     "UIInterfaceOrientationLandscapeRight",
                 ],
                 "ITSAppUsesNonExemptEncryption": false,
+                "UIUserInterfaceStyle": "Dark",
                 "UIApplicationSceneManifest": [
                     "UIApplicationSupportsMultipleScenes": true,
                     "UISceneConfigurations": [:],
