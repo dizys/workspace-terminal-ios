@@ -14,7 +14,10 @@ import TerminalUI
 public struct TerminalFeature {
     @ObservableState
     public struct State: Equatable, Identifiable, Sendable {
-        public let id: UUID
+        /// Stable identifier for the tab; doubles as the PTY reconnect token.
+        /// Named `sessionID` (not `id`) to avoid colliding with `Store`'s own
+        /// `Identifiable.id: ObjectIdentifier`, which shadows dynamic lookup.
+        public let sessionID: UUID
         public let agent: WorkspaceAgent
         public let deployment: Deployment
         public var size: TerminalSize
@@ -22,13 +25,15 @@ public struct TerminalFeature {
         public var totalBytesReceived: Int
         public var lastError: String?
 
+        public var id: UUID { sessionID }
+
         public init(
-            id: UUID = UUID(),
+            sessionID: UUID = UUID(),
             agent: WorkspaceAgent,
             deployment: Deployment,
             size: TerminalSize = TerminalSize(rows: 24, cols: 80)
         ) {
-            self.id = id
+            self.sessionID = sessionID
             self.agent = agent
             self.deployment = deployment
             self.size = size
@@ -68,7 +73,7 @@ public struct TerminalFeature {
         Reduce { state, action in
             switch action {
             case .onAppear:
-                let id = state.id
+                let id = state.sessionID
                 let agent = state.agent
                 let deployment = state.deployment
                 let size = state.size
@@ -107,7 +112,7 @@ public struct TerminalFeature {
                 .cancellable(id: CancelID.statePump(id), cancelInFlight: true)
 
             case .onDisappear:
-                let id = state.id
+                let id = state.sessionID
                 let store = sessionStore
                 return .merge(
                     .cancel(id: CancelID.statePump(id)),
@@ -124,7 +129,7 @@ public struct TerminalFeature {
 
             case let .resize(size):
                 state.size = size
-                let id = state.id
+                let id = state.sessionID
                 let store = sessionStore
                 return .run { _ in
                     if let session = await store.session(for: id) {

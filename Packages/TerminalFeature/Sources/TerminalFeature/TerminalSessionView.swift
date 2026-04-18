@@ -48,7 +48,7 @@ public struct TerminalSessionView: View {
         // Bridge: cold → live by querying the session store at subscription time.
         // If the session isn't attached yet (race vs onAppear), the stream
         // finishes empty and SwiftTerm just shows nothing until we re-render.
-        let id = store.id
+        let id = store.sessionID
         return AsyncThrowingStream { continuation in
             let task = Task {
                 guard let session = await sessionStore.session(for: id) else {
@@ -69,7 +69,7 @@ public struct TerminalSessionView: View {
     }
 
     private func send(bytes: Data) {
-        let id = store.id
+        let id = store.sessionID
         Task {
             if let session = await sessionStore.session(for: id) {
                 try? await session.send(bytes)
