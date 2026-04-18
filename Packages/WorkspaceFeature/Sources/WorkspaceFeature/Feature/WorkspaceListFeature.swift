@@ -11,6 +11,9 @@ public struct WorkspaceListFeature {
         public var isLoading: Bool = false
         public var error: String?
         public var lastFetchedAt: Date?
+        /// Bound to `List(selection:)` so NavigationSplitView can route the
+        /// tap natively (push on iPhone-compact, detail-column on iPad-regular).
+        public var selectedID: Workspace.ID?
 
         public init(workspaces: [Workspace] = []) {
             self.workspaces = workspaces
@@ -23,6 +26,7 @@ public struct WorkspaceListFeature {
         case loaded(Result<[Workspace], WorkspaceFailure>)
         case dismissError
         case workspaceTapped(Workspace.ID)
+        case selectionChanged(Workspace.ID?)
     }
 
     @Dependency(\.authenticatedAPIClient) var apiClient
@@ -67,6 +71,13 @@ public struct WorkspaceListFeature {
 
             case .workspaceTapped:
                 // Parent feature handles navigation.
+                return .none
+
+            case let .selectionChanged(id):
+                state.selectedID = id
+                if let id {
+                    return .send(.workspaceTapped(id))
+                }
                 return .none
             }
         }

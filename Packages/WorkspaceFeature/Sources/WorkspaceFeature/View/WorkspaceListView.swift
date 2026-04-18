@@ -37,13 +37,13 @@ public struct WorkspaceListView: View {
         }
     }
 
-    // List (not ScrollView) is the canonical native pattern for large-title
-    // collapse-on-scroll. Apple's own apps (Mail, Settings, Notes) all use
-    // List under a NavigationStack/SplitView for this. ScrollView's bridging
-    // to UINavigationBar.prefersLargeTitles is unreliable; List always works.
+    // List(selection:) is the canonical native pattern: NavigationSplitView
+    // routes the selection automatically — pushes on iPhone-compact, shows
+    // in the detail column on iPad-regular. We bridge selection back into TCA
+    // via .onChange so the parent feature can update the detail state.
     @ViewBuilder
     private var content: some View {
-        List {
+        List(selection: $store.selectedID.sending(\.selectionChanged)) {
             if store.workspaces.isEmpty, store.isLoading {
                 WTCinematicLoader(label: "Loading workspaces…")
                     .frame(maxWidth: .infinity, minHeight: 320)
@@ -65,14 +65,12 @@ public struct WorkspaceListView: View {
                 .listRowInsets(EdgeInsets())
             } else {
                 ForEach(store.workspaces) { workspace in
-                    Button { store.send(.workspaceTapped(workspace.id)) } label: {
-                        WorkspaceCard(workspace: workspace)
-                    }
-                    .buttonStyle(WorkspaceCardButtonStyle())
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets(top: WTSpace.xs, leading: WTSpace.lg,
-                                              bottom: WTSpace.xs, trailing: WTSpace.lg))
+                    WorkspaceCard(workspace: workspace)
+                        .tag(workspace.id)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: WTSpace.xs, leading: WTSpace.lg,
+                                                  bottom: WTSpace.xs, trailing: WTSpace.lg))
                 }
             }
         }
