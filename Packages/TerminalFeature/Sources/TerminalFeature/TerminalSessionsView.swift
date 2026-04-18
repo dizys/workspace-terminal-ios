@@ -60,13 +60,14 @@ public struct TerminalSessionsView: View {
         } else {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showingTabsPopover = true } label: {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 6) {
                         Image(systemName: "rectangle.stack")
                             .font(.system(size: 14, weight: .semibold))
                         Text("\(currentTabIndex + 1)/\(store.tabs.count)")
                             .font(WTFont.captionEmphasized)
                             .monospacedDigit()
                     }
+                    .padding(.horizontal, 4)
                     .foregroundStyle(WTColor.accent)
                 }
                 .buttonStyle(.plain)
