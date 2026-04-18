@@ -65,11 +65,11 @@ public struct WTTerminalView: UIViewRepresentable {
     }
 
     public func updateUIView(_ uiView: TerminalView, context: Context) {
-        // Auto-focus once the view is in the window. SwiftTerm only becomes
-        // first responder via its own singleTap handler, which means the user
-        // had to tap once before the keyboard + accessory bar appeared. We
-        // grab focus on the first updateUIView pass so typing works immediately.
         context.coordinator.autoFocusIfNeeded(uiView)
+        // SwiftTerm adds its panMouse recognizer lazily when mouseMode flips
+        // on. Re-clamp every update so 2-finger gestures route to our wheel
+        // pan instead of triggering a 1-finger mouse drag.
+        context.coordinator.clampSwiftTermPanRecognizers(on: uiView)
     }
 
     public static func dismantleUIView(_ uiView: TerminalView, coordinator: Coordinator) {
@@ -189,6 +189,23 @@ public struct WTTerminalView: UIViewRepresentable {
             pan.maximumNumberOfTouches = 2
             view.addGestureRecognizer(pan)
             wheelPanRecognizer = pan
+            clampSwiftTermPanRecognizers(on: view)
+        }
+
+        /// Force every SwiftTerm-added UIPanGestureRecognizer to single-finger
+        /// only, so 2-finger gestures don't ALSO trigger a 1-finger mouse
+        /// drag (which tmux interprets as drag-select). SwiftTerm adds its
+        /// panMouseGesture lazily when mouseMode flips on, so this must be
+        /// called from updateUIView too.
+        func clampSwiftTermPanRecognizers(on view: TerminalView) {
+            for recognizer in view.gestureRecognizers ?? [] {
+                guard let pan = recognizer as? UIPanGestureRecognizer,
+                      pan !== self.wheelPanRecognizer,
+                      pan !== view.panGestureRecognizer, // UIScrollView's own
+                      pan.maximumNumberOfTouches != 1
+                else { continue }
+                pan.maximumNumberOfTouches = 1
+            }
         }
 
         @objc private func handleWheelPan(_ recognizer: UIPanGestureRecognizer) {
