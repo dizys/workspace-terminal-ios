@@ -60,8 +60,11 @@ public struct TerminalSessionsView: View {
             ForEach(
                 store.scope(state: \.tabs, action: \.tabs)
             ) { tabStore in
-                TerminalSessionView(store: tabStore)
-                    .tag(Optional(tabStore.sessionID))
+                TerminalSessionView(
+                    store: tabStore,
+                    isActive: store.selectedID == tabStore.sessionID
+                )
+                .tag(Optional(tabStore.sessionID))
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))

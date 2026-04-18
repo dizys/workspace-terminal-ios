@@ -11,9 +11,14 @@ public struct TerminalSessionView: View {
     @Bindable var store: StoreOf<TerminalFeature>
     @Dependency(\.terminalSessionStore) private var sessionStore
     @Environment(\.dismiss) private var dismiss
+    /// Whether this view is the visible/selected terminal tab. Defaults to
+    /// true for single-terminal use; the multi-tab container flips it per
+    /// TabView selection.
+    private let isActive: Bool
 
-    public init(store: StoreOf<TerminalFeature>) {
+    public init(store: StoreOf<TerminalFeature>, isActive: Bool = true) {
         self.store = store
+        self.isActive = isActive
     }
 
     public var body: some View {
@@ -25,7 +30,8 @@ public struct TerminalSessionView: View {
                 onResize: { rows, cols in
                     store.send(.resize(TerminalSize(rows: rows, cols: cols)))
                 },
-                onError: { msg in store.send(.errorRaised(msg)) }
+                onError: { msg in store.send(.errorRaised(msg)) },
+                isActive: isActive
             )
             // Do NOT ignoreSafeArea(.bottom) — that pushes the terminal under
             // the SwiftTerm input accessory bar + system keyboard, hiding the

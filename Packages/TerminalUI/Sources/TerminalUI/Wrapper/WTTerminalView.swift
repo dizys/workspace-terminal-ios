@@ -21,17 +21,23 @@ public struct WTTerminalView: UIViewRepresentable {
     private let onSend: @Sendable (Data) -> Void
     private let onResize: @Sendable (Int, Int) -> Void
     private let onError: @Sendable (String) -> Void
+    /// Whether this view is the visible/active terminal. The container (e.g.
+    /// TabView in TerminalSessionsView) flips this to true for the
+    /// currently-selected tab so the view can claim first-responder status.
+    private let isActive: Bool
 
     public init(
         inbound: @escaping () -> Inbound,
         onSend: @escaping @Sendable (Data) -> Void,
         onResize: @escaping @Sendable (Int, Int) -> Void = { _, _ in },
-        onError: @escaping @Sendable (String) -> Void = { _ in }
+        onError: @escaping @Sendable (String) -> Void = { _ in },
+        isActive: Bool = true
     ) {
         self.inbound = inbound
         self.onSend = onSend
         self.onResize = onResize
         self.onError = onError
+        self.isActive = isActive
     }
 
     public func makeCoordinator() -> Coordinator {
@@ -70,7 +76,7 @@ public struct WTTerminalView: UIViewRepresentable {
     }
 
     public func updateUIView(_ uiView: TerminalView, context: Context) {
-        context.coordinator.autoFocusIfNeeded(uiView)
+        context.coordinator.applyFocusIfActive(uiView, isActive: isActive)
         // SwiftTerm adds its panMouse recognizer lazily when mouseMode flips
         // on. Re-clamp every update so 2-finger gestures route to our wheel
         // pan instead of triggering a 1-finger mouse drag.
@@ -143,24 +149,34 @@ public struct WTTerminalView: UIViewRepresentable {
 
         // MARK: - Auto-focus
 
-        private var didRequestInitialFocus: Bool = false
+        private var lastIsActive: Bool = false
         private var focusTask: Task<Void, Never>?
 
-        func autoFocusIfNeeded(_ view: TerminalView) {
-            guard !didRequestInitialFocus else { return }
-            didRequestInitialFocus = true
-            // becomeFirstResponder() requires the view to be in a window. The
-            // first updateUIView pass usually happens before window-attach, so
-            // poll briefly until the view is in the hierarchy.
-            focusTask = Task { @MainActor [weak view] in
-                for _ in 0..<30 { // up to ~1.5s
-                    guard let view else { return }
-                    if view.window != nil {
-                        _ = view.becomeFirstResponder()
-                        return
+        /// Become first responder when the host says this view is the active
+        /// tab. Resign when it isn't. Called on every updateUIView so we react
+        /// to TabView selection changes — without this, switching tabs in
+        /// TerminalSessionsView leaves the previously-focused tab frozen
+        /// (only one UIView can be first responder at a time).
+        func applyFocusIfActive(_ view: TerminalView, isActive: Bool) {
+            // Only act on transitions to avoid fighting user-driven keyboard
+            // dismissal during a single active session.
+            guard isActive != lastIsActive else { return }
+            lastIsActive = isActive
+
+            if isActive {
+                focusTask?.cancel()
+                focusTask = Task { @MainActor [weak view] in
+                    for _ in 0..<30 { // up to ~1.5s for window-attach
+                        guard let view else { return }
+                        if view.window != nil {
+                            _ = view.becomeFirstResponder()
+                            return
+                        }
+                        try? await Task.sleep(nanoseconds: 50_000_000)
                     }
-                    try? await Task.sleep(nanoseconds: 50_000_000)
                 }
+            } else if view.isFirstResponder {
+                _ = view.resignFirstResponder()
             }
         }
 
