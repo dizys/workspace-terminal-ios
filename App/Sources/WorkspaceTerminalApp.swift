@@ -12,6 +12,8 @@ struct WorkspaceTerminalApp: App {
     init() {
         let keychain = LiveKeychainClient()
         let deploymentStore = LiveDeploymentStore(keychain: keychain)
+        let appVersion = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "0.1.0"
+        let appBuild = (Bundle.main.infoDictionary?["CFBundleVersion"] as? String) ?? "1"
         let userAgent = CoderAPI.userAgent(appVersion: appVersion, build: appBuild)
 
         let apiClientProvider = AuthenticatedAPIClientProvider { [deploymentStore, userAgent] in
@@ -53,13 +55,5 @@ struct WorkspaceTerminalApp: App {
         WindowGroup {
             AppRootView(store: store)
         }
-    }
-
-    private var appVersion: String {
-        (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "0.1.0"
-    }
-
-    private var appBuild: String {
-        (Bundle.main.infoDictionary?["CFBundleVersion"] as? String) ?? "1"
     }
 }
