@@ -56,6 +56,7 @@ public struct WTTerminalView: UIViewRepresentable {
         coordinator.dismantle()
     }
 
+    @MainActor
     public final class Coordinator: NSObject, TerminalViewDelegate {
         private let onSend: @Sendable (Data) -> Void
         private let onResize: @Sendable (Int, Int) -> Void
@@ -76,20 +77,21 @@ public struct WTTerminalView: UIViewRepresentable {
         func attach(view: TerminalView, inbound: AsyncThrowingStream<Data, Error>) {
             self.view = view
             pumpTask?.cancel()
-            pumpTask = Task { [weak self] in
+            let onError = self.onError                     // local Sendable capture
+            pumpTask = Task { [weak self] in               // self is @MainActor → Sendable
                 do {
                     for try await chunk in inbound {
-                        guard !Task.isCancelled else { return }
-                        await MainActor.run { [weak self] in
-                            // SwiftTerm's feed is documented as background-safe but we
-                            // hop to main to keep ordering with delegate callbacks.
-                            self?.view?.feed(byteArray: ArraySlice(chunk))
-                        }
+                        if Task.isCancelled { return }
+                        await self?.feed(chunk)            // hops to MainActor naturally
                     }
                 } catch {
-                    self?.onError("\(error)")
+                    onError("\(error)")
                 }
             }
+        }
+
+        private func feed(_ chunk: Data) {
+            view?.feed(byteArray: ArraySlice(chunk))
         }
 
         func dismantle() {
@@ -99,6 +101,8 @@ public struct WTTerminalView: UIViewRepresentable {
         }
 
         // MARK: - TerminalViewDelegate
+        // UIKit dispatches delegate callbacks on the main thread; conforming
+        // from a @MainActor class is consistent with that contract.
 
         public func send(source: TerminalView, data: ArraySlice<UInt8>) {
             onSend(Data(data))
