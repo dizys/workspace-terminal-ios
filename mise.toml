@@ -1,0 +1,15 @@
+# Toolchain pinning. Run `mise install` to set up.
+# https://mise.jdx.dev
+
+[tools]
+tuist = "4.39.0"
+swiftformat = "0.55.5"
+swiftlint = "0.57.1"
+lefthook = "1.10.10"
+
+[settings]
+experimental = true
+
+[env]
+# Disable Tuist analytics by default for contributors.
+TUIST_ANALYTICS_DISABLED = "1"

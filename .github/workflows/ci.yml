@@ -1,0 +1,137 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TUIST_ANALYTICS_DISABLED: "1"
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+        with:
+          version: 2025.1.6
+      - name: SwiftFormat (check)
+        run: swiftformat --lint .
+      - name: SwiftLint (strict)
+        run: swiftlint lint --strict --quiet
+
+  test-packages:
+    name: Test (${{ matrix.package }})
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - CoderAPI
+          - PTYTransport
+          - Auth
+          - DesignSystem
+          - TerminalUI
+          - StoreKitClient
+          - WorkspaceFeature
+          - TerminalFeature
+          - AppFeature
+          - TestSupport
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 16
+        run: sudo xcode-select -s /Applications/Xcode_16.0.app
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: |
+            Packages/${{ matrix.package }}/.build
+            ~/Library/Developer/Xcode/DerivedData
+          key: spm-${{ matrix.package }}-${{ hashFiles(format('Packages/{0}/Package.swift', matrix.package)) }}
+          restore-keys: spm-${{ matrix.package }}-
+      - name: Resolve & test
+        working-directory: Packages/${{ matrix.package }}
+        run: |
+          swift package resolve
+          swift test --parallel
+
+  build-app:
+    name: Build app (Tuist)
+    runs-on: macos-15
+    needs: [lint]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 16
+        run: sudo xcode-select -s /Applications/Xcode_16.0.app
+      - uses: jdx/mise-action@v2
+        with:
+          version: 2025.1.6
+      - name: Cache Tuist
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.tuist
+            .tuist
+            ~/Library/Developer/Xcode/DerivedData
+          key: tuist-${{ hashFiles('Tuist/**', 'Project.swift', 'Packages/**/Package.swift') }}
+          restore-keys: tuist-
+      - name: Tuist install
+        run: tuist install
+      - name: Tuist generate
+        run: tuist generate --no-open
+      - name: Build (Debug, simulator)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -workspace CoderTerminal.xcworkspace \
+            -scheme CoderTerminal \
+            -configuration Debug \
+            -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=latest' \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build | xcbeautify || true
+
+  test-app:
+    name: Test app (${{ matrix.device }})
+    runs-on: macos-15
+    needs: [build-app]
+    strategy:
+      fail-fast: false
+      matrix:
+        device:
+          - "iPhone 15 Pro"
+          - "iPad Pro (12.9-inch) (6th generation)"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 16
+        run: sudo xcode-select -s /Applications/Xcode_16.0.app
+      - uses: jdx/mise-action@v2
+        with:
+          version: 2025.1.6
+      - name: Tuist install
+        run: tuist install
+      - name: Tuist generate
+        run: tuist generate --no-open
+      - name: Test
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -workspace CoderTerminal.xcworkspace \
+            -scheme CoderTerminal \
+            -configuration Debug \
+            -destination 'platform=iOS Simulator,name=${{ matrix.device }},OS=latest' \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            test | xcbeautify || true

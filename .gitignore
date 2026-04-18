@@ -1,0 +1,88 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+!default.pbxuser
+!default.mode1v3
+!default.mode2v3
+!default.perspectivev3
+
+# Tuist generated files (regenerated via `tuist generate`)
+**/*.xcodeproj
+**/*.xcworkspace
+!**/.swiftpm/xcode/package.xcworkspace
+.build/
+Tuist/Dependencies/
+Tuist/.build/
+Tuist/ProjectAutomation.xcframework
+graph.dot
+.tuist-bin/
+.tuist-version
+.tuist/
+
+# SwiftPM
+.swiftpm/
+Packages/*/.build/
+Packages/*/.swiftpm/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# CocoaPods (not used, but ignored defensively)
+Pods/
+
+# Carthage (not used)
+Carthage/
+
+# Bundler
+.bundle/
+
+# Secrets
+*.p8
+*.p12
+*.cer
+*.mobileprovision
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Coverage
+*.gcov
+*.gcda
+*.gcno
+coverage/
+*.coverage
+*.lcov

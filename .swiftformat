@@ -1,0 +1,25 @@
+# SwiftFormat configuration
+# https://github.com/nicklockwood/SwiftFormat
+
+--swiftversion 6.0
+--indent 4
+--maxwidth 120
+--wraparguments before-first
+--wrapparameters before-first
+--wrapcollections before-first
+--funcattributes prev-line
+--typeattributes prev-line
+--storedvarattrs same-line
+--computedvarattrs prev-line
+--commas inline
+--trimwhitespace always
+--stripunusedargs closure-only
+--self remove
+--importgrouping testable-bottom
+--patternlet inline
+--ranges no-space
+--operatorfunc spaced
+--nospaceoperators ..<,...
+--ifdef no-indent
+--header strip
+--exclude **/.build,**/Build,**/DerivedData,**/Tuist/Dependencies,**/.swiftpm
