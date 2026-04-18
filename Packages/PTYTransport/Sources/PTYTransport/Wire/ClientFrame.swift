@@ -31,7 +31,7 @@ struct ClientFrame: Encodable, Equatable, Sendable {
         ClientFrame(data: nil, height: UInt16(size.rows), width: UInt16(size.cols))
     }
 
-    nonisolated(unsafe) private static let encoder: JSONEncoder = {
+    private static let encoder: JSONEncoder = {
         let e = JSONEncoder()
         e.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         return e

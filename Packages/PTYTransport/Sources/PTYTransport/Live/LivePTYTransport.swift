@@ -16,8 +16,8 @@ import Foundation
 /// - No client-side ping; URLSession answers server pings automatically
 ///   (`coderd/httpapi/websocket.go:16-22`, server pings every 15s).
 public actor LivePTYTransport: PTYTransport {
-    public let inbound: AsyncThrowingStream<Data, Error>
-    public let state: AsyncStream<ConnectionState>
+    public nonisolated let inbound: AsyncThrowingStream<Data, Error>
+    public nonisolated let state: AsyncStream<ConnectionState>
 
     private let inboundContinuation: AsyncThrowingStream<Data, Error>.Continuation
     private let stateContinuation: AsyncStream<ConnectionState>.Continuation
