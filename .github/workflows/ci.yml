@@ -105,8 +105,14 @@ jobs:
       - name: Dump xcodebuild log on failure
         if: failure()
         run: |
-          echo "=== Last 200 lines of xcodebuild.log ==="
-          tail -n 200 xcodebuild.log
+          echo "=== Lines containing 'error:' or 'warning:' ==="
+          grep -E "(error:|warning:|FAILED)" xcodebuild.log || echo "(no matches)"
+          echo ""
+          echo "=== 100 lines around 'BUILD FAILED' ==="
+          grep -n -B 100 "BUILD FAILED" xcodebuild.log | tail -120 || true
+          echo ""
+          echo "=== Full log byte count ==="
+          wc -l xcodebuild.log
 
   test-app:
     name: Test app (${{ matrix.device }})
@@ -151,5 +157,11 @@ jobs:
       - name: Dump xcodebuild log on failure
         if: failure()
         run: |
-          echo "=== Last 200 lines of xcodebuild.log ==="
-          tail -n 200 xcodebuild.log
+          echo "=== Lines containing 'error:' or 'warning:' ==="
+          grep -E "(error:|warning:|FAILED)" xcodebuild.log || echo "(no matches)"
+          echo ""
+          echo "=== 100 lines around 'BUILD FAILED' ==="
+          grep -n -B 100 "BUILD FAILED" xcodebuild.log | tail -120 || true
+          echo ""
+          echo "=== Full log byte count ==="
+          wc -l xcodebuild.log
