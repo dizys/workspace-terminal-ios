@@ -19,7 +19,7 @@ Login screen renders only the buttons for enabled methods.
 ## OIDC
 
 - Use `ASWebAuthenticationSession`.
-- Custom URL scheme registered in `Info.plist`: `coderterminal://auth/callback`.
+- Custom URL scheme registered in `Info.plist`: `workspaceterminal://auth/callback`.
 - PKCE with S256 code challenge, 43+ character verifier.
 - `prefersEphemeralWebBrowserSession = false` by default (enterprise SSO usually expects cookie reuse). User can opt into ephemeral mode in Settings.
 - On callback, exchange code for session token via Coder's OIDC callback endpoint, store token in Keychain.

@@ -2,7 +2,7 @@ import Foundation
 
 /// Authentication flows for Coder deployments: OIDC, GitHub OAuth, password.
 public enum Auth {
-    public static let callbackURLScheme = "coderterminal"
+    public static let callbackURLScheme = "workspaceterminal"
     public static let callbackHost = "auth"
     public static let callbackPath = "/callback"
 }

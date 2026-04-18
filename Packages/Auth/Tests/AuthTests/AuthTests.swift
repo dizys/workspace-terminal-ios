@@ -5,7 +5,7 @@ import Testing
 struct AuthTests {
     @Test("Callback URL scheme is set")
     func callbackScheme() {
-        #expect(Auth.callbackURLScheme == "coderterminal")
+        #expect(Auth.callbackURLScheme == "workspaceterminal")
         #expect(Auth.callbackHost == "auth")
         #expect(Auth.callbackPath == "/callback")
     }

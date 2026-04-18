@@ -3,7 +3,7 @@ import ComposableArchitecture
 import SwiftUI
 
 @main
-struct CoderTerminalApp: App {
+struct WorkspaceTerminalApp: App {
     let store = Store(initialState: AppFeature.State()) {
         AppFeature()
     }

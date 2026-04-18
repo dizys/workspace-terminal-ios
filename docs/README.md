@@ -1,4 +1,4 @@
-# Coder Terminal — Docs
+# Workspace Terminal — Docs
 
 Native iOS/iPadOS app for [Coder](https://github.com/coder/coder) workspaces. First-class terminal experience: full ANSI/Unicode rendering, special keys, touch-native gestures, devcontainer support.
 

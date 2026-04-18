@@ -9,7 +9,7 @@ Coder itself is open-source (AGPL). The app could be open-source (free or paid) 
 
 ## Decision
 
-**Closed-source, paid app on the iOS App Store.** Public GitHub repo for issue tracking only (`coderterminal-issues`), source repo private.
+**Closed-source, paid app on the iOS App Store.** Public GitHub repo for issue tracking only (`workspaceterminal-issues`), source repo private.
 
 ## Consequences
 

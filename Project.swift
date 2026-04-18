@@ -2,7 +2,7 @@ import ProjectDescription
 import ProjectDescriptionHelpers
 
 let project = Project(
-    name: "CoderTerminal",
+    name: "WorkspaceTerminal",
     options: .options(
         defaultKnownRegions: ["en", "Base"],
         developmentRegion: "en"
@@ -33,13 +33,13 @@ let project = Project(
     ),
     targets: [
         .target(
-            name: "CoderTerminal",
+            name: "WorkspaceTerminal",
             destinations: Constants.destinations,
             product: .app,
             bundleId: Constants.appBundleId,
             deploymentTargets: Constants.deploymentTarget,
             infoPlist: .extendingDefault(with: [
-                "CFBundleDisplayName": "Coder Terminal",
+                "CFBundleDisplayName": "Workspace Terminal",
                 "CFBundleShortVersionString": "0.1.0",
                 "CFBundleVersion": "1",
                 "UILaunchScreen": [:],
@@ -67,25 +67,25 @@ let project = Project(
             ]
         ),
         .target(
-            name: "CoderTerminalTests",
+            name: "WorkspaceTerminalTests",
             destinations: Constants.destinations,
             product: .unitTests,
             bundleId: Constants.testsBundleId,
             deploymentTargets: Constants.deploymentTarget,
             sources: ["App/Tests/**"],
             dependencies: [
-                .target(name: "CoderTerminal"),
+                .target(name: "WorkspaceTerminal"),
                 .package(product: "TestSupport"),
             ]
         ),
     ],
     schemes: [
         .scheme(
-            name: "CoderTerminal",
+            name: "WorkspaceTerminal",
             shared: true,
-            buildAction: .buildAction(targets: ["CoderTerminal"]),
+            buildAction: .buildAction(targets: ["WorkspaceTerminal"]),
             testAction: .targets(
-                ["CoderTerminalTests"],
+                ["WorkspaceTerminalTests"],
                 configuration: .debug
             ),
             runAction: .runAction(configuration: .debug),

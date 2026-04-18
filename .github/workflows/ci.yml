@@ -93,8 +93,8 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild \
-            -workspace CoderTerminal.xcworkspace \
-            -scheme CoderTerminal \
+            -workspace WorkspaceTerminal.xcworkspace \
+            -scheme WorkspaceTerminal \
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build \
@@ -144,8 +144,8 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild \
-            -workspace CoderTerminal.xcworkspace \
-            -scheme CoderTerminal \
+            -workspace WorkspaceTerminal.xcworkspace \
+            -scheme WorkspaceTerminal \
             -configuration Debug \
             -destination "platform=iOS Simulator,name=${{ matrix.device }}" \
             -derivedDataPath build \

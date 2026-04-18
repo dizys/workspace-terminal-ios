@@ -36,7 +36,7 @@
 ## App Store compliance
 
 - Privacy Manifest (`PrivacyInfo.xcprivacy`) declares: no tracking, no data collection beyond what user enters.
-- Privacy policy hosted at `coderterminal.app/privacy`, linked from Settings and App Store listing.
+- Privacy policy hosted at `workspaceterminal.app/privacy`, linked from Settings and App Store listing.
 - Required reason API declarations: Keychain, file-timestamp, user-defaults (all standard).
 
 ## Threat model

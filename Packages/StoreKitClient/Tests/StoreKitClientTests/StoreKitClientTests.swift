@@ -5,7 +5,7 @@ import Testing
 struct StoreKitClientTests {
     @Test("Pro product id is namespaced")
     func proProductId() {
-        #expect(StoreKitClient.proProductID.hasPrefix("app.coderterminal"))
+        #expect(StoreKitClient.proProductID.hasPrefix("app.workspaceterminal"))
     }
 
     @Test("Purchased status is entitled")

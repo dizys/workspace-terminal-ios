@@ -3,7 +3,7 @@ import StoreKit
 
 /// Receipt validation + purchase gating via StoreKit 2.
 public enum StoreKitClient {
-    public static let proProductID = "app.coderterminal.ios.pro"
+    public static let proProductID = "app.workspaceterminal.ios.pro"
 }
 
 public enum PurchaseStatus: Sendable, Equatable {

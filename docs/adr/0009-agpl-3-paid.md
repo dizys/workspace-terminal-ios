@@ -18,7 +18,7 @@ This is exactly Coder's own model: AGPL source on GitHub, commercial Coder Enter
 
 **License source under AGPL-3.0. Sell the binary on the App Store.**
 
-- Public GitHub repo at https://github.com/dizys/coder-terminal-ios — full source, AGPL-3.0
+- Public GitHub repo at https://github.com/dizys/workspace-terminal-ios — full source, AGPL-3.0
 - App Store distribution remains the official paid channel
 - Commercial reuse / re-distribution requires a separate license (standard dual-licensing)
 
@@ -45,6 +45,6 @@ This is exactly Coder's own model: AGPL source on GitHub, commercial Coder Enter
 
 ## Open follow-ups
 
-- Branding: should the project name include "Open" (e.g., "OpenCoderTerminal")? Probably no — the App Store name is the canonical product name; the repo can stay `coder-terminal-ios`.
+- Branding: should the project name include "Open" (e.g., "OpenWorkspaceTerminal")? Probably no — the App Store name is the canonical product name; the repo stays `workspace-terminal-ios`.
 - CONTRIBUTING.md: write before opening to community PRs.
 - CLA decision: not needed for v1, decide when first non-trivial PR arrives.

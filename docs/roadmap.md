@@ -76,9 +76,9 @@
 **Goal:** v1.0 on App Store.
 
 - App Store submission (likely 1–3 review rounds)
-- Marketing site at `coderterminal.app` (Astro static, Cloudflare Pages)
+- Marketing site at `workspaceterminal.app` (Astro static, Cloudflare Pages)
 - Support email + privacy policy hosted
-- Public issues repo on GitHub: `coderterminal-issues`
+- Public issues repo on GitHub: `workspaceterminal-issues`
 - Launch announcement: Coder Discord, Hacker News, dev Twitter
 
 **Exit criteria:** app live on App Store, marketing site up, first paying customers.

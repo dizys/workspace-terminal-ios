@@ -48,7 +48,7 @@ private struct PaywallStubView: View {
         VStack(spacing: 24) {
             Image(systemName: "lock.shield")
                 .font(.system(size: 64))
-            Text("Coder Terminal")
+            Text("Workspace Terminal")
                 .font(.largeTitle).bold()
             Text("Paywall stub — replace in M0 with StoreKit 2 product page.")
                 .multilineTextAlignment(.center)

@@ -13,8 +13,8 @@ Two options:
 
 ## App identifier and name (resolve before M5)
 
-- Bundle ID: `app.coderterminal.ios` (placeholder, in use until decided otherwise)
-- Name: "Coder Terminal"? "Codex Terminal"? "Coder for iOS"? Coordinate with Coder Inc. on trademark before publishing.
+- Bundle ID: `app.workspaceterminal.ios` (placeholder, in use until decided otherwise)
+- Name: "Workspace Terminal"? "Codex Terminal"? "Coder for iOS"? Coordinate with Coder Inc. on trademark before publishing.
 
 ## Coder Inc. relationship (resolve before M5)
 

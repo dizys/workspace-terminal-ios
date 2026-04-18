@@ -89,6 +89,6 @@ PR template: tests added · snapshot deltas reviewed · telemetry-free verified 
 
 ## Observability (dev only)
 
-- Verbose `os.Logger` subsystems: `app.coderterminal.api`, `.pty`, `.auth`, `.ui`.
+- Verbose `os.Logger` subsystems: `app.workspaceterminal.api`, `.pty`, `.auth`, `.ui`.
 - Filter in Console.app during dev.
 - All redacted in release builds.

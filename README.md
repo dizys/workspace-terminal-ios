@@ -1,4 +1,4 @@
-# Coder Terminal for iOS
+# Workspace Terminal for iOS
 
 A native iOS / iPadOS app for [Coder](https://github.com/coder/coder) workspaces. First-class terminal experience: full ANSI/Unicode rendering, special keys, touch-native gestures, devcontainer support.
 
@@ -46,7 +46,7 @@ Prerequisites: macOS, Xcode 16+. Toolchain versions are pinned via `mise.toml`.
 mise install              # installs Tuist, SwiftFormat, SwiftLint, lefthook
 tuist install             # fetch SwiftPM deps
 tuist generate            # generate Xcode workspace
-open CoderTerminal.xcworkspace
+open WorkspaceTerminal.xcworkspace
 ```
 
 Pre-commit hooks (formatting + lint) are installed via:
@@ -57,7 +57,7 @@ lefthook install
 
 ## Reporting bugs / requesting features
 
-Public issue tracker: <https://github.com/dizys/coder-terminal-ios/issues>
+Public issue tracker: <https://github.com/dizys/workspace-terminal-ios/issues>
 
 Security issues should NOT be filed publicly. Email: see Settings → About → Security in the app.
 
