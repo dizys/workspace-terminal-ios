@@ -184,10 +184,10 @@ final class WTKeyBar: UIInputView {
                 backing.trailingAnchor.constraint(equalTo: trailingAnchor),
 
                 label.centerYAnchor.constraint(equalTo: backing.centerYAnchor),
-                label.leadingAnchor.constraint(equalTo: backing.leadingAnchor, constant: 8),
-                label.trailingAnchor.constraint(equalTo: backing.trailingAnchor, constant: -8),
+                label.leadingAnchor.constraint(equalTo: backing.leadingAnchor, constant: 6),
+                label.trailingAnchor.constraint(equalTo: backing.trailingAnchor, constant: -6),
                 heightAnchor.constraint(greaterThanOrEqualToConstant: 30),
-                widthAnchor.constraint(greaterThanOrEqualToConstant: 30),
+                widthAnchor.constraint(greaterThanOrEqualToConstant: 26),
             ])
 
             addTarget(self, action: #selector(handleTouchUpInside), for: .touchUpInside)
