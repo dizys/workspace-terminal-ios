@@ -24,7 +24,7 @@ struct TerminalFeatureReducerTests {
 
     @Test("initial state is .idle")
     func initialState() async {
-        let store = await TestStore(
+        let store = TestStore(
             initialState: TerminalFeature.State(
                 agent: makeAgent(),
                 deployment: makeDeployment()
@@ -32,7 +32,7 @@ struct TerminalFeatureReducerTests {
         ) {
             TerminalFeature()
         }
-        await store.assert {
+        store.assert {
             $0.connection = .idle
             $0.totalBytesReceived = 0
             $0.lastError = nil
@@ -41,7 +41,7 @@ struct TerminalFeatureReducerTests {
 
     @Test("stateChanged updates connection phase")
     func stateChangedUpdatesPhase() async {
-        let store = await TestStore(
+        let store = TestStore(
             initialState: TerminalFeature.State(
                 agent: makeAgent(),
                 deployment: makeDeployment()
@@ -65,7 +65,7 @@ struct TerminalFeatureReducerTests {
 
     @Test("bytesReceived updates byte counter (no large payload in state)")
     func bytesReceivedAccumulates() async {
-        let store = await TestStore(
+        let store = TestStore(
             initialState: TerminalFeature.State(
                 agent: makeAgent(),
                 deployment: makeDeployment()
@@ -83,7 +83,7 @@ struct TerminalFeatureReducerTests {
 
     @Test("errorRaised stores message; dismissError clears it")
     func errorRaisedAndDismiss() async {
-        let store = await TestStore(
+        let store = TestStore(
             initialState: TerminalFeature.State(
                 agent: makeAgent(),
                 deployment: makeDeployment()
@@ -101,7 +101,7 @@ struct TerminalFeatureReducerTests {
 
     @Test("resize updates state.size (UI-driven)")
     func resizeUpdatesSize() async {
-        let store = await TestStore(
+        let store = TestStore(
             initialState: TerminalFeature.State(
                 agent: makeAgent(),
                 deployment: makeDeployment()
