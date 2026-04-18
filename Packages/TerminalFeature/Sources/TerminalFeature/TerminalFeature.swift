@@ -148,12 +148,6 @@ public struct TerminalFeature {
                 return .none
 
             case let .stateChanged(connectionState):
-                // DIAG: investigate why `exit` doesn't close the tab.
-                // Expected: shell exit → WS closes → ConnectionState.closed(_)
-                // → reducer matches → closeTabTapped fires.
-                // If we never see .closed in the logs, Coder's reconnecting-PTY
-                // is keeping the WS alive after the inner shell exited.
-                print("[TerminalFeature] stateChanged: \(connectionState) (sessionID=\(state.sessionID))")
                 state.connection = phase(for: connectionState)
                 return .none
 
