@@ -4,16 +4,15 @@ import Testing
 
 @Suite("Workspace endpoints")
 struct WorkspaceEndpointTests {
-    init() { StubURLProtocol.reset() }
-
     @Test("listMyWorkspaces decodes the workspaces array")
     func list() async throws {
-        StubURLProtocol.register(
+        let stub = StubURLSession()
+        stub.register(
             method: "GET",
             pathSuffix: "/api/v2/workspaces",
             response: .init(body: Fixtures.json(workspacesJSON))
         )
-        let workspaces = try await Fixtures.client().listMyWorkspaces()
+        let workspaces = try await Fixtures.client(session: stub.session).listMyWorkspaces()
         #expect(workspaces.count == 1)
         #expect(workspaces[0].name == "dev")
         #expect(workspaces[0].latestBuild.status == .running)
@@ -21,13 +20,15 @@ struct WorkspaceEndpointTests {
 
     @Test("createBuild posts the transition and decodes the new build")
     func createBuild() async throws {
+        let stub = StubURLSession()
         let workspaceID = UUID()
-        StubURLProtocol.register(
+        stub.register(
             method: "POST",
             pathSuffix: "/api/v2/workspaces/\(workspaceID.uuidString.lowercased())/builds",
             response: .init(body: Fixtures.json(buildJSON))
         )
-        let build = try await Fixtures.client().createBuild(workspaceID: workspaceID, transition: .start)
+        let build = try await Fixtures.client(session: stub.session)
+            .createBuild(workspaceID: workspaceID, transition: .start)
         #expect(build.transition == .start)
         #expect(build.buildNumber == 17)
     }

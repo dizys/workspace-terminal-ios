@@ -10,11 +10,24 @@ enum Fixtures {
 
     static let userAgent = "WorkspaceTerminal/0.1.0 (1; iOS) CoderAPI/0.1.0"
 
-    static func client(token: SessionToken? = "test-token") -> LiveCoderAPIClient {
-        LiveCoderAPIClient(
+    /// Build a `LiveCoderAPIClient` for tests, optionally with a stubbed
+    /// session (for endpoint tests). Pass nothing for tests that don't hit
+    /// the network.
+    static func client(
+        token: SessionToken? = "test-token",
+        session: URLSession? = nil
+    ) -> LiveCoderAPIClient {
+        if let session {
+            return LiveCoderAPIClient(
+                deployment: deployment,
+                userAgent: userAgent,
+                session: session,
+                tokenProvider: { token }
+            )
+        }
+        return LiveCoderAPIClient(
             deployment: deployment,
             userAgent: userAgent,
-            session: URLSession.stubbed(),
             tokenProvider: { token }
         )
     }

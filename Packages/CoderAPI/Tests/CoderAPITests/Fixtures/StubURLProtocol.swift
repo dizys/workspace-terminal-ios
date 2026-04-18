@@ -1,9 +1,52 @@
 import Foundation
 
-/// In-memory `URLProtocol` stub. Register handlers per (method, path-suffix)
-/// before running a test; intercepts all requests and returns the configured
-/// response.
+/// In-process HTTP stub. Each `StubURLSession` owns its own handler map,
+/// so concurrent tests never interfere with each other.
+///
+/// Usage:
+/// ```swift
+/// let stub = StubURLSession()
+/// stub.register(method: .get, pathSuffix: "/api/v2/users/me", response: .init(body: ...))
+/// let client = Fixtures.client(session: stub.session)
+/// ```
+final class StubURLSession: @unchecked Sendable {
+    /// The configured `URLSession`. Pass it to `LiveCoderAPIClient` (test init).
+    let session: URLSession
+
+    /// Stable id baked into the session config so `StubURLProtocol` can look
+    /// up the right handler map at request time.
+    let sessionID: UUID
+
+    private let handlers = LockedHandlers()
+
+    init() {
+        let id = UUID()
+        sessionID = id
+
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        // Bake the session id into a custom header so StubURLProtocol can route.
+        config.httpAdditionalHeaders = [StubURLProtocol.sessionIDHeader: id.uuidString]
+        session = URLSession(configuration: config)
+
+        StubURLProtocol.registry.set(id: id, handlers: handlers)
+    }
+
+    deinit {
+        StubURLProtocol.registry.remove(id: sessionID)
+        session.invalidateAndCancel()
+    }
+
+    func register(method: String, pathSuffix: String, response: StubURLProtocol.Response) {
+        handlers.set(key: StubKey(method: method.uppercased(), pathSuffix: pathSuffix), value: response)
+    }
+}
+
+/// `URLProtocol` that dispatches to the right per-session handler map.
 final class StubURLProtocol: URLProtocol, @unchecked Sendable {
+    static let sessionIDHeader = "X-Stub-Session-Id"
+    static let registry = StubRegistry()
+
     struct Response: Sendable {
         let status: Int
         let body: Data
@@ -16,29 +59,25 @@ final class StubURLProtocol: URLProtocol, @unchecked Sendable {
         }
     }
 
-    /// (HTTP method, path suffix) → response. Path suffix is matched with
-    /// `String.hasSuffix` against the request URL's path so tests don't have
-    /// to mirror the full `/api/v2/...` prefix every time.
-    static let handlers = LockedHandlers()
-
-    static func register(method: String, pathSuffix: String, response: Response) {
-        handlers.set(key: Key(method: method.uppercased(), pathSuffix: pathSuffix), value: response)
-    }
-
-    static func reset() {
-        handlers.clear()
-    }
-
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
         let method = (request.httpMethod ?? "GET").uppercased()
         let path = request.url?.path ?? ""
-        guard let response = Self.handlers.firstMatch(method: method, path: path) else {
+
+        guard let sessionIDString = request.value(forHTTPHeaderField: Self.sessionIDHeader),
+              let sessionID = UUID(uuidString: sessionIDString),
+              let handlers = Self.registry.handlers(for: sessionID) else {
             client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
             return
         }
+
+        guard let response = handlers.firstMatch(method: method, path: path) else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
+            return
+        }
+
         let httpResponse = HTTPURLResponse(
             url: request.url!,
             statusCode: response.status,
@@ -53,19 +92,35 @@ final class StubURLProtocol: URLProtocol, @unchecked Sendable {
     override func stopLoading() {}
 }
 
-/// Thread-safe handler map.
-final class LockedHandlers: @unchecked Sendable {
+/// Maps session id → its handler map. Safe for concurrent access.
+final class StubRegistry: @unchecked Sendable {
     private let lock = NSLock()
-    private var dict: [Key: StubURLProtocol.Response] = [:]
+    private var map: [UUID: LockedHandlers] = [:]
 
-    func set(key: Key, value: StubURLProtocol.Response) {
+    func set(id: UUID, handlers: LockedHandlers) {
         lock.lock(); defer { lock.unlock() }
-        dict[key] = value
+        map[id] = handlers
     }
 
-    func clear() {
+    func remove(id: UUID) {
         lock.lock(); defer { lock.unlock() }
-        dict.removeAll()
+        map.removeValue(forKey: id)
+    }
+
+    func handlers(for id: UUID) -> LockedHandlers? {
+        lock.lock(); defer { lock.unlock() }
+        return map[id]
+    }
+}
+
+/// Per-session handler map. Thread-safe.
+final class LockedHandlers: @unchecked Sendable {
+    private let lock = NSLock()
+    private var dict: [StubKey: StubURLProtocol.Response] = [:]
+
+    func set(key: StubKey, value: StubURLProtocol.Response) {
+        lock.lock(); defer { lock.unlock() }
+        dict[key] = value
     }
 
     func firstMatch(method: String, path: String) -> StubURLProtocol.Response? {
@@ -77,16 +132,7 @@ final class LockedHandlers: @unchecked Sendable {
     }
 }
 
-struct Key: Hashable, Sendable {
+struct StubKey: Hashable, Sendable {
     let method: String
     let pathSuffix: String
-}
-
-extension URLSession {
-    /// Build a `URLSession` configured to use `StubURLProtocol` for all requests.
-    static func stubbed() -> URLSession {
-        let config = URLSessionConfiguration.ephemeral
-        config.protocolClasses = [StubURLProtocol.self]
-        return URLSession(configuration: config)
-    }
 }
