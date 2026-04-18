@@ -118,13 +118,13 @@ final class WTKeyBar: UIInputView {
 
     // MARK: - Key catalog
 
-    private struct KeyDefinition {
+    fileprivate struct KeyDefinition {
         let label: String
         let action: KeyAction
         let style: KeyButton.Style
     }
 
-    private enum KeyAction {
+    fileprivate enum KeyAction {
         case ctrl
         case escape
         case tab
@@ -158,7 +158,7 @@ final class WTKeyBar: UIInputView {
         private let onTap: () -> Void
         private var isSelectedState: Bool = false
 
-        init(definition: WTKeyBar.KeyDefinition, onTap: @escaping () -> Void) {
+        fileprivate init(definition: WTKeyBar.KeyDefinition, onTap: @escaping () -> Void) {
             self.style = definition.style
             self.onTap = onTap
             super.init(frame: .zero)
