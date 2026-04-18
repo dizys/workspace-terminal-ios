@@ -16,20 +16,16 @@ public struct SignedInRootView: View {
 
     public var body: some View {
         NavigationSplitView {
-            ZStack {
-                WTColor.background.ignoresSafeArea()
-                WorkspaceListView(store: store.scope(state: \.workspaceList, action: \.workspaceList))
-                    .toolbar {
-                        ToolbarItem(placement: .topBarLeading) {
-                            Button { store.send(.settingsButtonTapped) } label: {
-                                WTAvatar(name: store.deployment.deployment.username ?? "u", size: 30)
-                            }
-                            .buttonStyle(.plain)
+            WorkspaceListView(store: store.scope(state: \.workspaceList, action: \.workspaceList))
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button { store.send(.settingsButtonTapped) } label: {
+                            WTAvatar(name: store.deployment.deployment.username ?? "u", size: 30)
                         }
+                        .buttonStyle(.plain)
                     }
-            }
-            .toolbarBackground(WTColor.background, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
+                }
+                .background(WTColor.background.ignoresSafeArea())
         } detail: {
             ZStack {
                 WTColor.background.ignoresSafeArea()

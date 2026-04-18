@@ -12,12 +12,10 @@ public struct WorkspaceListView: View {
     }
 
     public var body: some View {
-        ZStack {
-            WTColor.background.ignoresSafeArea()
-            content
-        }
-        .navigationTitle("Workspaces")
-        .navigationBarTitleDisplayMode(.large)
+        content
+            .background(WTColor.background.ignoresSafeArea())
+            .navigationTitle("Workspaces")
+            .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { store.send(.refresh) } label: {
