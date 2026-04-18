@@ -148,7 +148,7 @@ private struct TabsPopover: View {
                 .foregroundStyle(WTColor.textTertiary)
                 .monospacedDigit()
         }
-        .padding(.horizontal, WTSpace.xl)
+        .padding(.horizontal, WTSpace.xxl)
         .padding(.vertical, WTSpace.md)
     }
 
@@ -182,11 +182,6 @@ private struct TabsPopover: View {
                                     .foregroundStyle(WTColor.accent)
                             }
                             Button {
-                                // Dismiss FIRST so the popover closes cleanly
-                                // before the tabs array mutates underneath it.
-                                // The closeTabTapped action fires after dismiss
-                                // completes, preventing the popover from
-                                // re-anchoring mid-close.
                                 let tabID = tab.sessionID
                                 onDismiss()
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
@@ -201,7 +196,7 @@ private struct TabsPopover: View {
                             }
                             .buttonStyle(.plain)
                         }
-                        .padding(.horizontal, WTSpace.lg)
+                        .padding(.horizontal, WTSpace.xxl)
                         .padding(.vertical, WTSpace.sm)
                         .contentShape(Rectangle())
                     }
@@ -232,7 +227,7 @@ private struct TabsPopover: View {
                     .foregroundStyle(WTColor.accent)
                 Spacer()
             }
-            .padding(.horizontal, WTSpace.xl)
+            .padding(.horizontal, WTSpace.xxl)
             .padding(.vertical, WTSpace.md)
             .contentShape(Rectangle())
         }
