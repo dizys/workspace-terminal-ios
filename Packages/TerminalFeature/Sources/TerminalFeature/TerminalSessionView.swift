@@ -15,6 +15,7 @@ public struct TerminalSessionView: View {
     /// Defer heavy SwiftTerm init until after the navigation push animation
     /// completes, so the transition doesn't stutter.
     @State private var isTerminalReady: Bool = false
+    @Environment(\.terminalTheme) private var theme
 
     public init(store: StoreOf<TerminalFeature>, isActive: Bool = true) {
         self.store = store
@@ -32,7 +33,8 @@ public struct TerminalSessionView: View {
                         store.send(.resize(TerminalSize(rows: rows, cols: cols)))
                     },
                     onError: { msg in store.send(.errorRaised(msg)) },
-                    isActive: isActive
+                    isActive: isActive,
+                    theme: theme
                 )
             }
 

@@ -25,19 +25,22 @@ public struct WTTerminalView: UIViewRepresentable {
     /// TabView in TerminalSessionsView) flips this to true for the
     /// currently-selected tab so the view can claim first-responder status.
     private let isActive: Bool
+    private let theme: TerminalTheme
 
     public init(
         inbound: @escaping () -> Inbound,
         onSend: @escaping @Sendable (Data) -> Void,
         onResize: @escaping @Sendable (Int, Int) -> Void = { _, _ in },
         onError: @escaping @Sendable (String) -> Void = { _ in },
-        isActive: Bool = true
+        isActive: Bool = true,
+        theme: TerminalTheme = .default
     ) {
         self.inbound = inbound
         self.onSend = onSend
         self.onResize = onResize
         self.onError = onError
         self.isActive = isActive
+        self.theme = theme
     }
 
     public func makeCoordinator() -> Coordinator {
@@ -47,9 +50,7 @@ public struct WTTerminalView: UIViewRepresentable {
     public func makeUIView(context: Context) -> TerminalView {
         let view = TerminalView(frame: .zero, font: UIFont.monospacedSystemFont(ofSize: 14, weight: .regular))
         view.terminalDelegate = context.coordinator
-        view.backgroundColor = UIColor(WTColor.background)
-        view.nativeForegroundColor = UIColor(WTColor.textPrimary)
-        view.nativeBackgroundColor = UIColor(WTColor.background)
+        theme.apply(to: view)
         // Forward iOS taps/scrolls to the host as xterm mouse events when the
         // remote app (tmux, vim, htop) requests mouse mode. SwiftTerm defaults
         // this to true, but we set it explicitly so future SwiftTerm releases
@@ -77,10 +78,9 @@ public struct WTTerminalView: UIViewRepresentable {
 
     public func updateUIView(_ uiView: TerminalView, context: Context) {
         context.coordinator.applyFocusIfActive(uiView, isActive: isActive)
-        // SwiftTerm adds its panMouse recognizer lazily when mouseMode flips
-        // on. Re-clamp every update so 2-finger gestures route to our wheel
-        // pan instead of triggering a 1-finger mouse drag.
         context.coordinator.clampSwiftTermPanRecognizers(on: uiView)
+        // Re-apply theme if it changed (e.g. user picked a new theme in settings).
+        context.coordinator.applyThemeIfChanged(uiView, theme: theme)
     }
 
     public static func dismantleUIView(_ uiView: TerminalView, coordinator: Coordinator) {
@@ -150,6 +150,7 @@ public struct WTTerminalView: UIViewRepresentable {
         // MARK: - Auto-focus
 
         private var lastIsActive: Bool = false
+        private var lastThemeID: String?
         private var focusTask: Task<Void, Never>?
 
         /// Become first responder when the host says this view is the active
@@ -178,6 +179,14 @@ public struct WTTerminalView: UIViewRepresentable {
             } else if view.isFirstResponder {
                 _ = view.resignFirstResponder()
             }
+        }
+
+        // MARK: - Theme
+
+        func applyThemeIfChanged(_ view: TerminalView, theme: TerminalTheme) {
+            guard theme.id != lastThemeID else { return }
+            lastThemeID = theme.id
+            theme.apply(to: view)
         }
 
         // MARK: - Gesture customizations

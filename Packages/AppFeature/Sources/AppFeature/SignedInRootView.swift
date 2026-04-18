@@ -9,6 +9,11 @@ import WorkspaceFeature
 
 public struct SignedInRootView: View {
     @Bindable var store: StoreOf<SignedInFeature>
+    @AppStorage("selectedTerminalThemeID") private var selectedThemeID: String = TerminalTheme.default.id
+
+    private var selectedTheme: TerminalTheme {
+        TerminalTheme.bundled.first { $0.id == selectedThemeID } ?? .default
+    }
 
     public init(store: StoreOf<SignedInFeature>) {
         self.store = store
@@ -53,6 +58,7 @@ public struct SignedInRootView: View {
             }
         }
         .tint(WTColor.accent)
+        .environment(\.terminalTheme, selectedTheme)
         .sheet(
             isPresented: Binding(
                 get: { store.isSettingsPresented },
@@ -66,6 +72,7 @@ public struct SignedInRootView: View {
 
 private struct SettingsSheetView: View {
     @Bindable var store: StoreOf<SignedInFeature>
+    @AppStorage("selectedTerminalThemeID") private var selectedThemeID: String = TerminalTheme.default.id
 
     var body: some View {
         NavigationStack {
@@ -74,6 +81,7 @@ private struct SettingsSheetView: View {
                 ScrollView {
                     VStack(spacing: WTSpace.xl) {
                         AccountCard(store: store)
+                        ThemePickerCard(selectedThemeID: $selectedThemeID)
                         SignOutCard(store: store)
                         Spacer(minLength: WTSpace.xl)
                     }
@@ -192,4 +200,63 @@ private struct SignOutCard: View {
 private extension StoredDeployment {
     var host: String { deployment.baseURL.host ?? deployment.displayName }
 }
+
+// MARK: - Theme picker
+
+private struct ThemePickerCard: View {
+    @Binding var selectedThemeID: String
+
+    var body: some View {
+        WTCard {
+            VStack(alignment: .leading, spacing: WTSpace.md) {
+                Text("Terminal Theme")
+                    .font(WTFont.captionEmphasized)
+                    .foregroundStyle(WTColor.textTertiary)
+                    .textCase(.uppercase)
+                    .tracking(0.5)
+
+                VStack(spacing: WTSpace.xs) {
+                    ForEach(TerminalTheme.bundled) { theme in
+                        Button {
+                            selectedThemeID = theme.id
+                        } label: {
+                            HStack(spacing: WTSpace.md) {
+                                ThemePreviewDots(theme: theme)
+                                Text(theme.name)
+                                    .font(WTFont.bodyEmphasized)
+                                    .foregroundStyle(WTColor.textPrimary)
+                                Spacer()
+                                if selectedThemeID == theme.id {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundStyle(WTColor.accent)
+                                }
+                            }
+                            .padding(.vertical, WTSpace.sm)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct ThemePreviewDots: View {
+    let theme: TerminalTheme
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Circle().fill(Color(uiColor: theme.background.uiColor))
+                .frame(width: 14, height: 14)
+                .overlay(Circle().stroke(WTColor.border, lineWidth: 0.5))
+            ForEach(0..<4, id: \.self) { i in
+                Circle().fill(Color(uiColor: theme.ansi[i + 1].uiColor))
+                    .frame(width: 14, height: 14)
+            }
+        }
+    }
+}
+
 #endif
