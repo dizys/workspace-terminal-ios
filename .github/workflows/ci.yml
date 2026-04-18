@@ -47,8 +47,8 @@ jobs:
           - TestSupport
     steps:
       - uses: actions/checkout@v5
-      - name: Select Xcode 16.2
-        run: sudo xcode-select -s /Applications/Xcode_16.2.app
+      - name: Select Xcode 16.4
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
       - name: Cache SwiftPM
         uses: actions/cache@v4
         with:
@@ -69,8 +69,8 @@ jobs:
     needs: [lint]
     steps:
       - uses: actions/checkout@v5
-      - name: Select Xcode 16.2
-        run: sudo xcode-select -s /Applications/Xcode_16.2.app
+      - name: Select Xcode 16.4
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
       - uses: jdx/mise-action@v2
         with:
           version: 2025.1.6
@@ -96,7 +96,7 @@ jobs:
             -workspace CoderTerminal.xcworkspace \
             -scheme CoderTerminal \
             -configuration Debug \
-            -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=latest' \
+            -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
@@ -110,18 +110,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        device:
-          - "iPhone 15 Pro"
-          - "iPad Pro (12.9-inch) (6th generation)"
+        include:
+          - device: "iPhone 16 Pro"
+            os: "18.4"
+          - device: "iPad Pro 13-inch (M4)"
+            os: "18.4"
     steps:
       - uses: actions/checkout@v5
-      - name: Select Xcode 16.2
-        run: sudo xcode-select -s /Applications/Xcode_16.2.app
+      - name: Select Xcode 16.4
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
       - uses: jdx/mise-action@v2
         with:
           version: 2025.1.6
       - name: Install xcbeautify
         run: brew install xcbeautify
+      - name: List installed simulator runtimes
+        run: xcrun simctl list runtimes
       - name: Tuist install
         run: tuist install
       - name: Tuist generate
@@ -133,7 +137,7 @@ jobs:
             -workspace CoderTerminal.xcworkspace \
             -scheme CoderTerminal \
             -configuration Debug \
-            -destination 'platform=iOS Simulator,name=${{ matrix.device }},OS=latest' \
+            -destination "platform=iOS Simulator,name=${{ matrix.device }},OS=${{ matrix.os }}" \
             -derivedDataPath build \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
