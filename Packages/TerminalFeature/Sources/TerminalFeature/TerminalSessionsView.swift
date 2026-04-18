@@ -27,6 +27,17 @@ public struct TerminalSessionsView: View {
             .navigationTitle(store.agent.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { tabsControl }
+            // Popover attached to the BODY (not the toolbar button) so the
+            // toolbar button doesn't reserve trailing anchor-area space.
+            .popover(isPresented: $showingTabsPopover, arrowEdge: .top) {
+                TabsPopover(
+                    store: store,
+                    onDismiss: { showingTabsPopover = false }
+                )
+                .frame(minWidth: 280, idealWidth: 320, maxWidth: 360)
+                .frame(idealHeight: 320, maxHeight: 480)
+                .presentationCompactAdaptation(.popover)
+            }
             .task { store.send(.onAppear) }
     }
 
@@ -38,9 +49,11 @@ public struct TerminalSessionsView: View {
             if store.tabs.count <= 1 {
                 // Single-tab: just a + button.
                 Button { store.send(.addTabTapped) } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 16, weight: .semibold))
+                    Label("New Tab", systemImage: "plus")
+                        .labelStyle(.iconOnly)
+                        .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(WTColor.accent)
+                        .fixedSize()
                 }
             } else {
                 // Multi-tab: counter button opens the popover.
@@ -53,15 +66,7 @@ public struct TerminalSessionsView: View {
                             .monospacedDigit()
                     }
                     .foregroundStyle(WTColor.accent)
-                }
-                .popover(isPresented: $showingTabsPopover, arrowEdge: .top) {
-                    TabsPopover(
-                        store: store,
-                        onDismiss: { showingTabsPopover = false }
-                    )
-                    .frame(minWidth: 280, idealWidth: 320, maxWidth: 360)
-                    .frame(idealHeight: 320, maxHeight: 480)
-                    .presentationCompactAdaptation(.popover)
+                    .fixedSize()
                 }
             }
         }
