@@ -47,8 +47,8 @@ jobs:
           - TestSupport
     steps:
       - uses: actions/checkout@v5
-      - name: Select Xcode 16
-        run: sudo xcode-select -s /Applications/Xcode_16.0.app
+      - name: Select Xcode 16.2
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app
       - name: Cache SwiftPM
         uses: actions/cache@v4
         with:
@@ -69,8 +69,8 @@ jobs:
     needs: [lint]
     steps:
       - uses: actions/checkout@v5
-      - name: Select Xcode 16
-        run: sudo xcode-select -s /Applications/Xcode_16.0.app
+      - name: Select Xcode 16.2
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app
       - uses: jdx/mise-action@v2
         with:
           version: 2025.1.6
@@ -115,8 +115,8 @@ jobs:
           - "iPad Pro (12.9-inch) (6th generation)"
     steps:
       - uses: actions/checkout@v5
-      - name: Select Xcode 16
-        run: sudo xcode-select -s /Applications/Xcode_16.0.app
+      - name: Select Xcode 16.2
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app
       - uses: jdx/mise-action@v2
         with:
           version: 2025.1.6

@@ -105,4 +105,3 @@ private struct WorkspaceListStubView: View {
     }
 }
 #endif
-
