@@ -11,9 +11,9 @@ Two options:
 
 **Current lean:** one-time purchase for v1. Add an optional Pro subscription later if/when we ship cloud-sync features (themes/settings sync, multi-device session resume).
 
-## App identifier and name (resolve before M0 ends)
+## App identifier and name (resolve before M5)
 
-- Bundle ID: `app.coderterminal.ios`?
+- Bundle ID: `app.coderterminal.ios` (placeholder, in use until decided otherwise)
 - Name: "Coder Terminal"? "Codex Terminal"? "Coder for iOS"? Coordinate with Coder Inc. on trademark before publishing.
 
 ## Coder Inc. relationship (resolve before M5)

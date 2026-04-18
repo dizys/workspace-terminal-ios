@@ -27,3 +27,4 @@ ADRs live in [`adr/`](adr/). One per non-obvious decision.
 - [ADR-0006: OIDC required at v1](adr/0006-oidc-v1.md)
 - [ADR-0007: Universal app from day 1](adr/0007-universal-app.md)
 - [ADR-0008: Tuist for project generation](adr/0008-tuist.md)
+- [ADR-0009: AGPL-3.0 source + paid App Store distribution](adr/0009-agpl-3-paid.md) — supersedes ADR-0004

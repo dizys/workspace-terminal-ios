@@ -63,6 +63,10 @@ Security issues should NOT be filed publicly. Email: see Settings → About → 
 
 ## License
 
-All rights reserved. This is a closed-source commercial app. The contents of this repository are proprietary; no license is granted to use, copy, modify, or distribute the source code or assets.
+Source code is licensed under [GNU AGPL-3.0](LICENSE). You're free to read, fork, modify, self-host, and redistribute under the terms of the AGPL — the same model [Coder itself](https://github.com/coder/coder) uses.
 
-The `docs/` directory is provided for transparency about design decisions and is not licensed for redistribution.
+The official binary distribution is sold on the App Store. If you don't want to build from source, the App Store version is the convenient way to get the app installed and updated.
+
+If you build and distribute a modified version (including running it as a service that other people use), AGPL requires that you publish your modifications under AGPL too. Commercial reuse requires a separate license — contact the maintainers.
+
+This project is not affiliated with Coder Technologies, Inc.

@@ -1,6 +1,6 @@
 # ADR-0004: Closed-source, paid distribution
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-0009](0009-agpl-3-paid.md) on 2026-04-18
 - **Date:** 2026-04-17
 
 ## Context
