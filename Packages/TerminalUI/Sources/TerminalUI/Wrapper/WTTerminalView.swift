@@ -50,6 +50,11 @@ public struct WTTerminalView: UIViewRepresentable {
         // can't silently flip the default.
         view.allowMouseReporting = true
 
+        // Replace SwiftTerm's default TerminalAccessory with our branded key
+        // bar (matches DesignSystem; sticky ctrl modifier; arrow keys honor
+        // application-cursor mode like SwiftTerm's default).
+        view.inputAccessoryView = WTKeyBar(terminal: view)
+
         // 1) Suppress SwiftTerm's iOS long-press → context-menu when the host
         //    has mouse mode on. Otherwise a slow tap/drag in tmux pops the
         //    iOS Cut/Copy/Paste menu and (on iOS 16+) can auto-paste clipboard
