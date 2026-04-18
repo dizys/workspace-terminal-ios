@@ -44,8 +44,10 @@ final class EchoPTYServer: @unchecked Sendable {
     private let listener: NWListener
     private let queue = DispatchQueue(label: "EchoPTYServer", qos: .userInitiated)
     private var connection: NWConnection?
-    private var script: [Step] = []
+    private var scriptQueue: [[Step]] = []  // one entry per connection
+    private var script: [Step] = []         // the current connection's script
     private var scriptIndex: Int = 0
+    private var connectionCount: Int = 0
     private var recording = Recording()
     private let lock = NSLock()
     private var clientReadyContinuation: CheckedContinuation<Void, Never>?
@@ -91,8 +93,16 @@ final class EchoPTYServer: @unchecked Sendable {
     }
 
     func script(_ steps: [Step]) {
+        scripts([steps])
+    }
+
+    /// Per-connection scripts. Connection N gets `scripts[N]`. If a connection
+    /// arrives beyond the supplied scripts, it falls through with no actions.
+    func scripts(_ list: [[Step]]) {
         lock.withLock {
-            self.script = steps
+            self.scriptQueue = list
+            self.connectionCount = 0
+            self.script = list.first ?? []
             self.scriptIndex = 0
         }
     }
@@ -139,6 +149,11 @@ final class EchoPTYServer: @unchecked Sendable {
             case .ready:
                 self.lock.withLock {
                     self.recording.clientConnected = true
+                    // Pull this connection's script from the queue.
+                    let idx = self.connectionCount
+                    self.connectionCount += 1
+                    self.script = idx < self.scriptQueue.count ? self.scriptQueue[idx] : []
+                    self.scriptIndex = 0
                     if let cont = self.clientReadyContinuation {
                         self.clientReadyContinuation = nil
                         cont.resume()

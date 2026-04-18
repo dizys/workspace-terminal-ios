@@ -31,8 +31,10 @@ public actor LivePTYTransport: PTYTransport {
     private var session: URLSession?
     private var task: URLSessionWebSocketTask?
     private var receiveLoop: Task<Void, Never>?
+    private var reconnectTask: Task<Void, Never>?
     private var phase: Phase = .idle
     private var isClosed: Bool = false
+    private var currentAttempt: Int = 0
 
     private enum Phase {
         case idle
@@ -108,6 +110,8 @@ public actor LivePTYTransport: PTYTransport {
         guard !isClosed else { return }
         isClosed = true
         phase = .closing
+        reconnectTask?.cancel()
+        reconnectTask = nil
         receiveLoop?.cancel()
         receiveLoop = nil
         // Send WS close 1000 (matches web UI on unmount).
@@ -124,6 +128,7 @@ public actor LivePTYTransport: PTYTransport {
 
     private func openConnection(attempt: Int) async throws {
         phase = .connecting(attempt: attempt)
+        currentAttempt = attempt
         stateContinuation.yield(.connecting(attempt: attempt))
 
         let url = PTYURLBuilder.makeURL(deployment: deployment, config: config)
@@ -188,7 +193,53 @@ public actor LivePTYTransport: PTYTransport {
         let reason = code == 0
             ? CloseReason.fatal(code: 0, reason: error.localizedDescription)
             : CloseClassifier.classify(code: code, reason: reasonString)
-        finishWithReason(reason)
+
+        if shouldReconnect(after: reason) {
+            scheduleReconnect(after: reason)
+        } else {
+            finishWithReason(reason)
+        }
+    }
+
+    /// Decide if a close warrants automatic reconnect with the same UUID
+    /// (server still holds the ring buffer for ~5min).
+    private func shouldReconnect(after reason: CloseReason) -> Bool {
+        switch reason {
+        case .serverTimeout:
+            return true
+        case .userInitiated, .authExpired, .agentUnreachable, .fatal:
+            return false
+        }
+    }
+
+    /// Surface `.reconnecting(attempt:)` immediately; sleep per policy; dial.
+    /// Any further failure flows back through `handleReceiveError` → recursion
+    /// stops naturally when policy.maxAttempts is exhausted.
+    private func scheduleReconnect(after reason: CloseReason) {
+        let nextAttempt = currentAttempt + 1
+        let policy = config.reconnectPolicy
+        if let max = policy.maxAttempts, nextAttempt > max {
+            finishWithReason(.fatal(code: -1, reason: "reconnect attempts exhausted (\(max))"))
+            return
+        }
+
+        // Tear down the dead task before scheduling the new dial.
+        task?.cancel(with: .abnormalClosure, reason: nil)
+        task = nil
+        session?.invalidateAndCancel()
+        session = nil
+        receiveLoop?.cancel()
+        receiveLoop = nil
+
+        phase = .connecting(attempt: nextAttempt)
+        stateContinuation.yield(.reconnecting(attempt: nextAttempt, lastError: PTYError.closed(reason)))
+
+        let delay = policy.delay(forAttempt: nextAttempt)
+        reconnectTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            if Task.isCancelled { return }
+            try? await self?.openConnection(attempt: nextAttempt)
+        }
     }
 
     private func finishWithReason(_ reason: CloseReason) {
