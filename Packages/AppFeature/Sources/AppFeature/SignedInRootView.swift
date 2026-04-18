@@ -31,9 +31,12 @@ public struct SignedInRootView: View {
                 WTColor.background.ignoresSafeArea()
                 if let detailStore = store.scope(state: \.detail, action: \.detail) {
                     NavigationStack {
-                        WorkspaceDetailView(store: detailStore) { agent in
-                            store.send(.openTerminal(agent))
-                        }
+                        WorkspaceDetailView(
+                            store: detailStore,
+                            onAgentTap: { agent in store.send(.openTerminal(agent)) },
+                            liveSessions: { agentID in store.liveSessionsByAgent[agentID] ?? 0 },
+                            onKillAgentSessions: { agentID in store.send(.killAgentSessions(agentID)) }
+                        )
                         .navigationDestination(
                             item: $store.scope(state: \.terminals, action: \.terminals)
                         ) { terminalsStore in

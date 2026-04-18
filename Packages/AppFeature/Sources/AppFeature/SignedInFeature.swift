@@ -27,12 +27,19 @@ public struct SignedInFeature {
             self.deployment = deployment
             self.workspaceList = WorkspaceListFeature.State()
         }
+
+        /// Map of agent.id → number of cached live tabs. Used to badge
+        /// agents in the workspace detail view.
+        public var liveSessionsByAgent: [UUID: Int] {
+            Dictionary(uniqueKeysWithValues: activeTerminals.map { ($0.key, $0.value.tabs.count) })
+        }
     }
 
     public enum Action: Equatable {
         case workspaceList(WorkspaceListFeature.Action)
         case detail(WorkspaceDetailFeature.Action)
         case openTerminal(WorkspaceAgent)
+        case killAgentSessions(UUID)
         case terminals(PresentationAction<TerminalSessionsFeature.Action>)
         case settingsButtonTapped
         case settingsDismissed
@@ -41,6 +48,7 @@ public struct SignedInFeature {
     }
 
     @Dependency(\.deploymentStore) var deploymentStore
+    @Dependency(\.terminalSessionStore) var terminalSessionStore
 
     public init() {}
 
@@ -88,6 +96,23 @@ public struct SignedInFeature {
                     }
                 }
                 return .none
+
+            case let .killAgentSessions(agentID):
+                // Tear down every cached session for this agent. Used when
+                // the user explicitly ends sessions from the agent list.
+                guard let cached = state.activeTerminals.removeValue(forKey: agentID) else {
+                    return .none
+                }
+                let tabIDs = cached.tabs.map(\.sessionID)
+                let store = terminalSessionStore
+                return .run { _ in
+                    for id in tabIDs {
+                        if let session = await store.session(for: id) {
+                            await session.close(.userInitiated)
+                        }
+                        await store.detach(id: id)
+                    }
+                }
 
             case .terminals:
                 return .none

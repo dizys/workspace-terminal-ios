@@ -91,11 +91,10 @@ public struct TerminalSessionsFeature {
                 state.selectedID = id
                 return .none
 
-            case let .tabs(.element(id: tabID, action: .stateChanged(.closed(reason)))):
-                // Shell exited (or session torn down) — auto-close this tab.
-                // .userInitiated is the WS 1000 close that follows `exit`/`logout`.
-                // Other terminal closures (agentUnreachable, fatal) also clean up.
-                guard reason != .userInitiated || state.tabs[id: tabID] != nil else { return .none }
+            case let .tabs(.element(id: tabID, action: .stateChanged(.closed))):
+                // Any terminal close (shell exit, fatal, agent unreachable,
+                // server timeout post-exhaustion) auto-closes the tab.
+                guard state.tabs[id: tabID] != nil else { return .none }
                 return .send(.closeTabTapped(tabID))
 
             case .tabs:

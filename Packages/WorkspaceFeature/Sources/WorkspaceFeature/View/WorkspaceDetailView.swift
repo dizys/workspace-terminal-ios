@@ -7,13 +7,19 @@ import SwiftUI
 public struct WorkspaceDetailView: View {
     @Bindable public var store: StoreOf<WorkspaceDetailFeature>
     private let onAgentTap: (WorkspaceAgent) -> Void
+    private let liveSessions: (UUID) -> Int
+    private let onKillAgentSessions: (UUID) -> Void
 
     public init(
         store: StoreOf<WorkspaceDetailFeature>,
-        onAgentTap: @escaping (WorkspaceAgent) -> Void = { _ in }
+        onAgentTap: @escaping (WorkspaceAgent) -> Void = { _ in },
+        liveSessions: @escaping (UUID) -> Int = { _ in 0 },
+        onKillAgentSessions: @escaping (UUID) -> Void = { _ in }
     ) {
         self.store = store
         self.onAgentTap = onAgentTap
+        self.liveSessions = liveSessions
+        self.onKillAgentSessions = onKillAgentSessions
     }
 
     public var body: some View {
@@ -25,7 +31,12 @@ public struct WorkspaceDetailView: View {
                         HeroCard(workspace: workspace, pendingTransition: store.pendingTransition)
                         LifecycleCard(workspace: workspace, store: store)
                         if !store.agents.isEmpty {
-                            AgentsCard(agents: store.agents, onAgentTap: onAgentTap)
+                            AgentsCard(
+                                agents: store.agents,
+                                onAgentTap: onAgentTap,
+                                liveSessions: liveSessions,
+                                onKillAgentSessions: onKillAgentSessions
+                            )
                         }
                         if !store.buildLogs.isEmpty {
                             BuildLogCard(logs: store.buildLogs)
@@ -235,6 +246,8 @@ private struct LifecycleButton: View {
 private struct AgentsCard: View {
     let agents: [WorkspaceAgent]
     let onAgentTap: (WorkspaceAgent) -> Void
+    let liveSessions: (UUID) -> Int
+    let onKillAgentSessions: (UUID) -> Void
 
     var body: some View {
         WTCard {
@@ -247,40 +260,70 @@ private struct AgentsCard: View {
 
                 VStack(spacing: WTSpace.sm) {
                     ForEach(agents) { agent in
-                        Button { onAgentTap(agent) } label: {
-                            HStack(spacing: WTSpace.md) {
-                                WTStatusDot(tone: tone(for: agent.status))
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(agent.name)
-                                        .font(WTFont.bodyEmphasized)
-                                        .foregroundStyle(WTColor.textPrimary)
-                                    Text("\(agent.operatingSystem ?? "?") · \(agent.architecture ?? "?")")
-                                        .font(WTFont.caption)
-                                        .foregroundStyle(WTColor.textSecondary)
-                                }
-                                Spacer()
-                                if agent.isDevcontainer {
-                                    Text("devcontainer")
-                                        .font(WTFont.caption)
-                                        .foregroundStyle(WTColor.accent)
-                                        .padding(.horizontal, WTSpace.sm)
-                                        .padding(.vertical, 2)
-                                        .background(
-                                            Capsule(style: .continuous)
-                                                .fill(WTColor.accentSoft)
-                                        )
-                                }
-                                Image(systemName: "terminal")
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundStyle(WTColor.accent)
-                            }
-                            .padding(.vertical, WTSpace.xs)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(agent.status != .connected)
-                        .opacity(agent.status == .connected ? 1 : 0.5)
+                        AgentRow(
+                            agent: agent,
+                            liveCount: liveSessions(agent.id),
+                            onTap: { onAgentTap(agent) },
+                            onEndSessions: { onKillAgentSessions(agent.id) }
+                        )
                     }
+                }
+            }
+        }
+    }
+
+}
+
+private struct AgentRow: View {
+    let agent: WorkspaceAgent
+    let liveCount: Int
+    let onTap: () -> Void
+    let onEndSessions: () -> Void
+    @State private var showingActions: Bool = false
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: WTSpace.md) {
+                WTStatusDot(tone: tone(for: agent.status))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(agent.name)
+                        .font(WTFont.bodyEmphasized)
+                        .foregroundStyle(WTColor.textPrimary)
+                    Text("\(agent.operatingSystem ?? "?") · \(agent.architecture ?? "?")")
+                        .font(WTFont.caption)
+                        .foregroundStyle(WTColor.textSecondary)
+                }
+                Spacer()
+                if agent.isDevcontainer {
+                    Text("devcontainer")
+                        .font(WTFont.caption)
+                        .foregroundStyle(WTColor.accent)
+                        .padding(.horizontal, WTSpace.sm)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule(style: .continuous).fill(WTColor.accentSoft)
+                        )
+                }
+                if liveCount > 0 {
+                    LiveSessionBadge(count: liveCount)
+                }
+                Image(systemName: "terminal")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(WTColor.accent)
+            }
+            .padding(.vertical, WTSpace.xs)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(agent.status != .connected)
+        .opacity(agent.status == .connected ? 1 : 0.5)
+        .contextMenu {
+            if liveCount > 0 {
+                Button(role: .destructive) {
+                    onEndSessions()
+                } label: {
+                    Label("End \(liveCount) session\(liveCount == 1 ? "" : "s")",
+                          systemImage: "xmark.circle")
                 }
             }
         }
@@ -293,6 +336,28 @@ private struct AgentsCard: View {
         case .disconnected, .timeout:   return .error
         case .unknown:                  return .neutral
         }
+    }
+}
+
+private struct LiveSessionBadge: View {
+    let count: Int
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(WTColor.accent)
+                .frame(width: 6, height: 6)
+            Text("\(count)")
+                .font(WTFont.caption)
+                .foregroundStyle(WTColor.accent)
+                .monospacedDigit()
+        }
+        .padding(.horizontal, WTSpace.sm)
+        .padding(.vertical, 2)
+        .background(
+            Capsule(style: .continuous).fill(WTColor.accentSoft)
+        )
+        .accessibilityLabel("\(count) live session\(count == 1 ? "" : "s")")
     }
 }
 
