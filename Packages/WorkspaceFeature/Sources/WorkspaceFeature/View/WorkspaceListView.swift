@@ -15,7 +15,7 @@ public struct WorkspaceListView: View {
         content
             .background(WTColor.background.ignoresSafeArea())
             .navigationTitle("Workspaces")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { store.send(.refresh) } label: {
@@ -46,6 +46,21 @@ public struct WorkspaceListView: View {
     @ViewBuilder
     private var content: some View {
         ScrollView {
+            // Custom large header — scrolls away with content, keeps the
+            // visual prominence we want without depending on the system
+            // large-title behavior (unreliable inside NavigationSplitView's
+            // sidebar). The inline title in the navigation bar takes over
+            // once this scrolls off.
+            HStack {
+                Text("Workspaces")
+                    .font(.system(size: 34, weight: .bold))
+                    .foregroundStyle(WTColor.textPrimary)
+                Spacer()
+            }
+            .padding(.horizontal, WTSpace.lg)
+            .padding(.top, WTSpace.md)
+            .padding(.bottom, WTSpace.sm)
+
             if store.workspaces.isEmpty, store.isLoading {
                 WTCinematicLoader(label: "Loading workspaces…")
                     .frame(minHeight: 320)
