@@ -16,16 +16,21 @@ public struct SignedInRootView: View {
 
     public var body: some View {
         NavigationSplitView {
-            WorkspaceListView(store: store.scope(state: \.workspaceList, action: \.workspaceList))
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button { store.send(.settingsButtonTapped) } label: {
-                            WTAvatar(name: store.deployment.deployment.username ?? "u", size: 30)
+            // NavigationStack inside the sidebar gives us our own
+            // UINavigationController — required for .navigationBarTitleDisplayMode(.large)
+            // to initialize correctly on the first push. NavigationSplitView's
+            // default sidebar nav is unreliable for large titles in compact width.
+            NavigationStack {
+                WorkspaceListView(store: store.scope(state: \.workspaceList, action: \.workspaceList))
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button { store.send(.settingsButtonTapped) } label: {
+                                WTAvatar(name: store.deployment.deployment.username ?? "u", size: 30)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
-                }
-                .background(WTColor.background.ignoresSafeArea())
+            }
         } detail: {
             ZStack {
                 WTColor.background.ignoresSafeArea()

@@ -6,10 +6,6 @@ import SwiftUI
 
 public struct WorkspaceListView: View {
     @Bindable public var store: StoreOf<WorkspaceListFeature>
-    /// Becomes true once the custom large header has scrolled off the top —
-    /// at which point we surface "Workspaces" inline in the nav bar so the
-    /// title is always visible while scrolling, just like native iOS.
-    @State private var headerHasScrolledOff: Bool = false
 
     public init(store: StoreOf<WorkspaceListFeature>) {
         self.store = store
@@ -18,8 +14,8 @@ public struct WorkspaceListView: View {
     public var body: some View {
         content
             .background(WTColor.background.ignoresSafeArea())
-            .navigationTitle(headerHasScrolledOff ? "Workspaces" : "")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("Workspaces")
+            .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { store.send(.refresh) } label: {
@@ -47,34 +43,13 @@ public struct WorkspaceListView: View {
     // lets the large navigation title collapse on scroll *and* restore when
     // you scroll back to the top. Conditional content (loader / empty state
     // / list) lives inside the same ScrollView.
+    // ScrollView is always the root — keeping a stable view identity is what
+    // lets the system large navigation title collapse on scroll *and* restore
+    // when you scroll back to the top. Conditional content (loader / empty
+    // state / list) lives inside the same ScrollView.
     @ViewBuilder
     private var content: some View {
         ScrollView {
-            // Custom large header — scrolls with content. A
-            // GeometryReader probe reports when its bottom edge crosses the
-            // top of the scroll view; at that point we promote "Workspaces"
-            // into the inline nav bar so the title is always visible (native
-            // iOS large-title behavior, implemented manually because the
-            // system .large title is unreliable inside NavigationSplitView's
-            // sidebar).
-            HStack {
-                Text("Workspaces")
-                    .font(.system(size: 34, weight: .bold))
-                    .foregroundStyle(WTColor.textPrimary)
-                Spacer()
-            }
-            .padding(.horizontal, WTSpace.lg)
-            .padding(.top, WTSpace.md)
-            .padding(.bottom, WTSpace.sm)
-            .background(
-                GeometryReader { proxy in
-                    Color.clear.preference(
-                        key: HeaderBottomKey.self,
-                        value: proxy.frame(in: .named("workspaceScroll")).maxY
-                    )
-                }
-            )
-
             if store.workspaces.isEmpty, store.isLoading {
                 WTCinematicLoader(label: "Loading workspaces…")
                     .frame(minHeight: 320)
@@ -102,22 +77,6 @@ public struct WorkspaceListView: View {
                 .padding(.bottom, WTSpace.xxxl)
             }
         }
-        .coordinateSpace(name: "workspaceScroll")
-        .onPreferenceChange(HeaderBottomKey.self) { y in
-            // y < 0 means the header's bottom edge has passed above the
-            // ScrollView's top — header is no longer visible.
-            let off = y < 0
-            if off != headerHasScrolledOff {
-                headerHasScrolledOff = off
-            }
-        }
-    }
-}
-
-private struct HeaderBottomKey: PreferenceKey {
-    static let defaultValue: CGFloat = .infinity
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
     }
 }
 
