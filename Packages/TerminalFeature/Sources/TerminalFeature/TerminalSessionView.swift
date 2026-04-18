@@ -26,7 +26,10 @@ public struct TerminalSessionView: View {
                 },
                 onError: { msg in store.send(.errorRaised(msg)) }
             )
-            .ignoresSafeArea(edges: .bottom)
+            // Do NOT ignoreSafeArea(.bottom) — that pushes the terminal under
+            // the SwiftTerm input accessory bar + system keyboard, hiding the
+            // last lines. Respecting the bottom safe area lets SwiftTerm's
+            // UIScrollView shrink to the visible region.
 
             StatusOverlay(phase: store.connection)
                 .padding(WTSpace.md)
