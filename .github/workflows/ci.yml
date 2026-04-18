@@ -101,7 +101,12 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            build | xcbeautify
+            build 2>&1 | tee xcodebuild.log | xcbeautify
+      - name: Dump xcodebuild log on failure
+        if: failure()
+        run: |
+          echo "=== Last 200 lines of xcodebuild.log ==="
+          tail -n 200 xcodebuild.log
 
   test-app:
     name: Test app (${{ matrix.device }})
@@ -142,4 +147,9 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            test | xcbeautify
+            test 2>&1 | tee xcodebuild.log | xcbeautify
+      - name: Dump xcodebuild log on failure
+        if: failure()
+        run: |
+          echo "=== Last 200 lines of xcodebuild.log ==="
+          tail -n 200 xcodebuild.log
