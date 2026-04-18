@@ -50,7 +50,7 @@ final class WTKeyBar: UIInputView {
 
         stack.translatesAutoresizingMaskIntoConstraints = false
         stack.axis = .horizontal
-        stack.spacing = 6
+        stack.spacing = 4
         stack.alignment = .center
         stack.distribution = .fill
         scroll.addSubview(stack)
@@ -173,7 +173,7 @@ final class WTKeyBar: UIInputView {
             label.translatesAutoresizingMaskIntoConstraints = false
             label.text = definition.label
             label.textAlignment = .center
-            label.font = UIFont.monospacedSystemFont(ofSize: 15, weight: .medium)
+            label.font = UIFont.monospacedSystemFont(ofSize: 14, weight: .medium)
             label.isUserInteractionEnabled = false
             backing.addSubview(label)
 
@@ -184,10 +184,10 @@ final class WTKeyBar: UIInputView {
                 backing.trailingAnchor.constraint(equalTo: trailingAnchor),
 
                 label.centerYAnchor.constraint(equalTo: backing.centerYAnchor),
-                label.leadingAnchor.constraint(equalTo: backing.leadingAnchor, constant: 12),
-                label.trailingAnchor.constraint(equalTo: backing.trailingAnchor, constant: -12),
-                heightAnchor.constraint(greaterThanOrEqualToConstant: 32),
-                widthAnchor.constraint(greaterThanOrEqualToConstant: 38),
+                label.leadingAnchor.constraint(equalTo: backing.leadingAnchor, constant: 8),
+                label.trailingAnchor.constraint(equalTo: backing.trailingAnchor, constant: -8),
+                heightAnchor.constraint(greaterThanOrEqualToConstant: 30),
+                widthAnchor.constraint(greaterThanOrEqualToConstant: 30),
             ])
 
             addTarget(self, action: #selector(handleTouchUpInside), for: .touchUpInside)
