@@ -111,7 +111,14 @@ public struct WTTerminalView: UIViewRepresentable {
         }
 
         private func feed(_ chunk: Data) {
-            view?.feed(byteArray: ArraySlice(chunk))
+            guard let view else { return }
+            view.feed(byteArray: ArraySlice(chunk))
+            // Mouse-mode changes happen mid-stream when the host (e.g. tmux)
+            // sends DECSET ?1000h. SwiftTerm adds its panMouseGesture lazily
+            // at that moment, after all our updateUIView passes have fired.
+            // Re-clamp on every inbound chunk so 2-finger gestures route to
+            // our wheel-pan instead of SwiftTerm's 1-finger drag.
+            clampSwiftTermPanRecognizers(on: view)
         }
 
         func dismantle() {
