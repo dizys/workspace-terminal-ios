@@ -42,8 +42,6 @@ public struct WorkspaceDetailView: View {
         }
         .navigationTitle(store.workspace?.name ?? "Workspace")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(WTColor.background, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
         .refreshable { store.send(.refresh) }
         .task { store.send(.onAppear) }
         .alert("Something went wrong",

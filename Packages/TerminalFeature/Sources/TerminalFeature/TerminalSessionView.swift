@@ -45,13 +45,25 @@ public struct TerminalSessionView: View {
     }
 
     private func inboundStream() -> AsyncThrowingStream<Data, Error> {
-        // Bridge: cold → live by querying the session store at subscription time.
-        // If the session isn't attached yet (race vs onAppear), the stream
-        // finishes empty and SwiftTerm just shows nothing until we re-render.
+        // Bridge: cold → live, with a short polling window for the session
+        // to be attached. The reducer's .onAppear effect creates the transport
+        // and registers the session asynchronously, so the very first
+        // inboundStream() call from WTTerminalView typically sees nil. We
+        // poll for up to ~5s before giving up.
         let id = store.sessionID
+        let store = sessionStore
         return AsyncThrowingStream { continuation in
             let task = Task {
-                guard let session = await sessionStore.session(for: id) else {
+                var session: TerminalSession?
+                for _ in 0..<50 { // ≈5s at 100ms cadence
+                    if Task.isCancelled { return }
+                    if let s = await store.session(for: id) {
+                        session = s
+                        break
+                    }
+                    try? await Task.sleep(nanoseconds: 100_000_000)
+                }
+                guard let session else {
                     continuation.finish()
                     return
                 }
