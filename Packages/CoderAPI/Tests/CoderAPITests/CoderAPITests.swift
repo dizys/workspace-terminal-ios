@@ -1,6 +1,6 @@
+import Foundation
 import Testing
 @testable import CoderAPI
-import Foundation
 
 @Suite("CoderAPI smoke")
 struct CoderAPITests {

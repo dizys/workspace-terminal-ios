@@ -1,7 +1,7 @@
 import ComposableArchitecture
+import Foundation
 import Testing
 @testable import WorkspaceFeature
-import Foundation
 
 @Suite("WorkspaceListFeature smoke")
 struct WorkspaceListFeatureTests {

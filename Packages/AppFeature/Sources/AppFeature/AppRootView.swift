@@ -1,3 +1,4 @@
+#if os(iOS)
 import ComposableArchitecture
 import DesignSystem
 import SwiftUI
@@ -103,3 +104,5 @@ private struct WorkspaceListStubView: View {
         }
     }
 }
+#endif
+

@@ -1,6 +1,6 @@
+import Foundation
 import Testing
 @testable import TestSupport
-import Foundation
 
 @Suite("TestSupport smoke")
 struct TestSupportTests {

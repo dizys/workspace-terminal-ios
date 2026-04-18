@@ -9,11 +9,7 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "CoderAPI",
-            swiftSettings: [
-                .enableUpcomingFeature("StrictConcurrency"),
-                .enableExperimentalFeature("StrictConcurrency"),
-            ]
+            name: "CoderAPI"
         ),
         .testTarget(
             name: "CoderAPITests",

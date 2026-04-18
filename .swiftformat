@@ -11,12 +11,12 @@
 --typeattributes prev-line
 --storedvarattrs same-line
 --computedvarattrs prev-line
---commas inline
+--commas always
 --trimwhitespace always
 --stripunusedargs closure-only
---self remove
+--self init-only
 --importgrouping testable-bottom
---patternlet inline
+--patternlet hoist
 --ranges no-space
 --operatorfunc spaced
 --nospaceoperators ..<,...
