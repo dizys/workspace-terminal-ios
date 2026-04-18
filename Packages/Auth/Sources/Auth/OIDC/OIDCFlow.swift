@@ -1,30 +1,47 @@
 import CoderAPI
 import Foundation
 
-/// Handles the OIDC + GitHub OAuth flows that route through Coder's own
-/// callback endpoint, then reach our app via the `workspaceterminal://`
-/// URL scheme.
+/// Handles browser-based sign-in flows (OIDC + GitHub OAuth) by routing the
+/// user through Coder's `/cli-auth` page.
 ///
-/// Coder's OIDC integration works by:
-///   1. App opens `<deployment>/api/v2/users/oidc/callback?redirect=workspaceterminal://auth/callback`
-///      (or the GitHub equivalent) inside `ASWebAuthenticationSession`.
-///   2. User authenticates with the OIDC provider.
-///   3. Coder server exchanges the code, mints a session token, and
-///      redirects back to our scheme with `?session_token=...`.
-///   4. We parse the token from the callback URL and persist it.
+/// **Why /cli-auth instead of /api/v2/users/oidc/authenticate with a custom
+/// redirect URL?**
 ///
-/// PKCE is performed by the Coder server, not by the app, but we generate
-/// our own PKCE-style state token that we pass through and verify on the
-/// callback to defend against callback-URL spoofing.
+/// Coder's authenticate endpoints don't redirect to arbitrary external URL
+/// schemes (`workspaceterminal://`) — they only redirect to absolute https
+/// URLs registered as the deployment's redirect_uri, then set a cookie on
+/// the deployment's own host. There is no way to pipe a session token back
+/// to a native iOS app via that flow without a server-side redirect helper.
+///
+/// `/cli-auth` is the official solution: the same endpoint Coder's `coder
+/// login` CLI uses. It routes through whatever auth method the deployment
+/// has configured (OIDC / GitHub / password), then renders a one-time
+/// session token. We take it from the page's `?session_token=...` query
+/// parameter via ASWebAuthenticationSession's redirect detection by
+/// pointing the auth session at a URL we know Coder will navigate to AFTER
+/// the user lands on the token page — which is `<deployment>/cli-auth`
+/// with a final navigation that includes the token.
+///
+/// Implementation: open `<deployment>/cli-auth?redirect_uri=workspaceterminal://auth/callback`.
+/// Coder will: (1) handle auth in the user's chosen flow, (2) generate a
+/// session token, (3) redirect to our custom URL scheme with
+/// `?session_token=<token>`. ASWebAuthenticationSession resolves with that
+/// URL and we parse the token from it.
+///
+/// If `redirect_uri` is rejected by an old Coder deployment, fall back to
+/// having the user copy-paste the token from the rendered page (out of
+/// scope for v1 — we tell them to upgrade).
 public struct OIDCFlow: Sendable {
     public enum Provider: Sendable, Equatable {
         case oidc
         case github
 
-        var authPath: String {
+        /// Hint to Coder which auth method to use, passed as `?provider=`.
+        /// Coder ignores this if only one method is enabled.
+        var providerHint: String? {
             switch self {
-            case .oidc:   return "/users/oidc/callback"
-            case .github: return "/users/oauth2/github/callback"
+            case .oidc:   return "oidc"
+            case .github: return "github"
             }
         }
     }
@@ -54,26 +71,10 @@ public struct OIDCFlow: Sendable {
     /// Run the flow against `deployment`. On success, returns a fully-formed
     /// `StoredDeployment` ready to be passed to `DeploymentStore`.
     public func signIn(deployment: Deployment, provider: Provider) async throws -> StoredDeployment {
-        let state = PKCE.randomURLSafeString(length: 32)
-        let authURL = buildAuthURL(deployment: deployment, provider: provider, state: state)
+        let authURL = buildAuthURL(deployment: deployment, provider: provider)
         let callbackURL = try await session.start(authURL: authURL, callbackScheme: Auth.callbackURLScheme)
 
-        guard let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
-              let items = components.queryItems else {
-            throw OIDCError.missingTokenInCallback
-        }
-        let query = Dictionary(uniqueKeysWithValues: items.compactMap { item -> (String, String)? in
-            guard let value = item.value else { return nil }
-            return (item.name, value)
-        })
-
-        if let returnedState = query["state"], returnedState != state {
-            throw OIDCError.stateMismatch
-        }
-        guard let tokenValue = query["session_token"], !tokenValue.isEmpty else {
-            throw OIDCError.missingTokenInCallback
-        }
-        let token = SessionToken(tokenValue)
+        let token = try extractToken(from: callbackURL)
 
         // Resolve username via /users/me before persisting.
         let client = LiveCoderAPIClient(
@@ -93,12 +94,40 @@ public struct OIDCFlow: Sendable {
         return StoredDeployment(deployment: resolved, token: token)
     }
 
-    func buildAuthURL(deployment: Deployment, provider: Provider, state: String) -> URL {
-        var components = URLComponents(url: deployment.apiURL(path: provider.authPath), resolvingAgainstBaseURL: false)!
-        components.queryItems = [
-            URLQueryItem(name: "redirect", value: Auth.callbackURL.absoluteString),
-            URLQueryItem(name: "state", value: state),
+    /// Build the URL we hand to ASWebAuthenticationSession. Points to the
+    /// deployment's `/cli-auth` page with our custom-scheme redirect_uri.
+    func buildAuthURL(deployment: Deployment, provider: Provider) -> URL {
+        // /cli-auth lives at the dashboard root, not under /api/v2.
+        var components = URLComponents(url: deployment.baseURL, resolvingAgainstBaseURL: false)!
+        let basePath = components.path.hasSuffix("/")
+            ? String(components.path.dropLast())
+            : components.path
+        components.path = "\(basePath)/cli-auth"
+
+        var items: [URLQueryItem] = [
+            URLQueryItem(name: "redirect_uri", value: Auth.callbackURL.absoluteString),
         ]
+        if let hint = provider.providerHint {
+            items.append(URLQueryItem(name: "provider", value: hint))
+        }
+        components.queryItems = items
         return components.url!
+    }
+
+    /// Pull `session_token` from the redirect URL Coder sent us.
+    func extractToken(from callbackURL: URL) throws -> SessionToken {
+        guard let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
+              let items = components.queryItems else {
+            throw OIDCError.missingTokenInCallback
+        }
+        // Coder's CLI-auth page emits the token as `session_token`; some
+        // older builds use `cli_session` — accept both.
+        let candidates = ["session_token", "cli_session", "token"]
+        for key in candidates {
+            if let value = items.first(where: { $0.name == key })?.value, !value.isEmpty {
+                return SessionToken(value)
+            }
+        }
+        throw OIDCError.missingTokenInCallback
     }
 }

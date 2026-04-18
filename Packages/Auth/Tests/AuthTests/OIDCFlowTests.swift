@@ -5,27 +5,64 @@ import Testing
 
 @Suite("OIDCFlow URL building")
 struct OIDCFlowURLTests {
-    @Test("Builds OIDC auth URL with redirect + state")
+    @Test("Builds /cli-auth URL with redirect_uri + provider hint for OIDC")
     func oidcURL() {
         let flow = OIDCFlow(userAgent: "test", session: FakeAuthSession(callback: URL(string: "x://x")!))
         let dep = Deployment(baseURL: URL(string: "https://coder.example.com")!, displayName: "x")
-        let url = flow.buildAuthURL(deployment: dep, provider: .oidc, state: "STATE_A")
+        let url = flow.buildAuthURL(deployment: dep, provider: .oidc)
         let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)!
-        #expect(comps.path.hasSuffix("/api/v2/users/oidc/callback"))
+        #expect(comps.path == "/cli-auth")
         let q = Dictionary(uniqueKeysWithValues: (comps.queryItems ?? []).compactMap { item in
             item.value.map { v in (item.name, v) }
         })
-        #expect(q["state"] == "STATE_A")
-        #expect(q["redirect"] == Auth.callbackURL.absoluteString)
+        #expect(q["redirect_uri"] == Auth.callbackURL.absoluteString)
+        #expect(q["provider"] == "oidc")
     }
 
-    @Test("Uses GitHub callback path for .github provider")
+    @Test("Hints provider=github for .github")
     func githubURL() {
         let flow = OIDCFlow(userAgent: "test", session: FakeAuthSession(callback: URL(string: "x://x")!))
         let dep = Deployment(baseURL: URL(string: "https://coder.example.com")!, displayName: "x")
-        let url = flow.buildAuthURL(deployment: dep, provider: .github, state: "S")
-        #expect(URLComponents(url: url, resolvingAgainstBaseURL: false)!.path
-                .hasSuffix("/api/v2/users/oauth2/github/callback"))
+        let url = flow.buildAuthURL(deployment: dep, provider: .github)
+        let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)!
+        #expect(comps.path == "/cli-auth")
+        let q = Dictionary(uniqueKeysWithValues: (comps.queryItems ?? []).compactMap { item in
+            item.value.map { v in (item.name, v) }
+        })
+        #expect(q["provider"] == "github")
+    }
+
+    @Test("Handles deployment URL with subpath")
+    func subpathURL() {
+        let flow = OIDCFlow(userAgent: "test", session: FakeAuthSession(callback: URL(string: "x://x")!))
+        let dep = Deployment(baseURL: URL(string: "https://corp.com/coder")!, displayName: "x")
+        let url = flow.buildAuthURL(deployment: dep, provider: .oidc)
+        #expect(url.path == "/coder/cli-auth")
+    }
+
+    @Test("extractToken finds session_token query param")
+    func extractSessionToken() throws {
+        let flow = OIDCFlow(userAgent: "test", session: FakeAuthSession(callback: URL(string: "x://x")!))
+        let cb = URL(string: "workspaceterminal://auth/callback?session_token=abc-123")!
+        let token = try flow.extractToken(from: cb)
+        #expect(token.value == "abc-123")
+    }
+
+    @Test("extractToken accepts cli_session as a fallback name")
+    func extractCLISession() throws {
+        let flow = OIDCFlow(userAgent: "test", session: FakeAuthSession(callback: URL(string: "x://x")!))
+        let cb = URL(string: "workspaceterminal://auth/callback?cli_session=tok-xyz")!
+        let token = try flow.extractToken(from: cb)
+        #expect(token.value == "tok-xyz")
+    }
+
+    @Test("extractToken throws when token is missing")
+    func extractMissing() throws {
+        let flow = OIDCFlow(userAgent: "test", session: FakeAuthSession(callback: URL(string: "x://x")!))
+        let cb = URL(string: "workspaceterminal://auth/callback?error=denied")!
+        #expect(throws: OIDCFlow.OIDCError.missingTokenInCallback) {
+            _ = try flow.extractToken(from: cb)
+        }
     }
 }
 
