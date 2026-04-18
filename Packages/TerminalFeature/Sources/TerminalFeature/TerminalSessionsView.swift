@@ -49,12 +49,11 @@ public struct TerminalSessionsView: View {
             if store.tabs.count <= 1 {
                 // Single-tab: just a + button.
                 Button { store.send(.addTabTapped) } label: {
-                    Label("New Tab", systemImage: "plus")
-                        .labelStyle(.iconOnly)
+                    Image(systemName: "plus")
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(WTColor.accent)
-                        .fixedSize()
                 }
+                .buttonStyle(.plain)
             } else {
                 // Multi-tab: counter button opens the popover.
                 Button { showingTabsPopover = true } label: {
@@ -66,8 +65,8 @@ public struct TerminalSessionsView: View {
                             .monospacedDigit()
                     }
                     .foregroundStyle(WTColor.accent)
-                    .fixedSize()
                 }
+                .buttonStyle(.plain)
             }
         }
     }
