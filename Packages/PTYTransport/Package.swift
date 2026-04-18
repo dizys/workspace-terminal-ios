@@ -9,15 +9,22 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../CoderAPI"),
+        .package(url: "https://github.com/pointfreeco/swift-composable-architecture", from: "1.16.0"),
     ],
     targets: [
         .target(
             name: "PTYTransport",
-            dependencies: ["CoderAPI"]
+            dependencies: [
+                "CoderAPI",
+                .product(name: "ComposableArchitecture", package: "swift-composable-architecture"),
+            ]
         ),
         .testTarget(
             name: "PTYTransportTests",
-            dependencies: ["PTYTransport"]
+            dependencies: [
+                "PTYTransport",
+                .product(name: "ComposableArchitecture", package: "swift-composable-architecture"),
+            ]
         ),
     ],
     swiftLanguageModes: [.v6]
