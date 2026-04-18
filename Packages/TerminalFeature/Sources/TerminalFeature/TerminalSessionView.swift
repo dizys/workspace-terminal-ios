@@ -43,17 +43,6 @@ public struct TerminalSessionView: View {
         }
         .navigationTitle(store.agent.name)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            // Cmd+W on iPad/Mac hardware keyboards pops back to workspace
-            // detail. The button is hidden — we only want the keyboard
-            // shortcut, not visible chrome (back button already there).
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Close") { dismiss() }
-                    .keyboardShortcut("w", modifiers: .command)
-                    .opacity(0)
-                    .accessibilityHidden(true)
-            }
-        }
         .task { store.send(.onAppear) }
         .onDisappear { store.send(.onDisappear) }
         .alert("Terminal error",

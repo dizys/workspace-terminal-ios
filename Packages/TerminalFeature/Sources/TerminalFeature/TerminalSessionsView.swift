@@ -81,6 +81,12 @@ public struct TerminalSessionsView: View {
         ZStack {
             Button("New Tab") { store.send(.addTabTapped) }
                 .keyboardShortcut("t", modifiers: .command)
+            Button("Close Tab") {
+                if let id = store.selectedID {
+                    store.send(.closeTabTapped(id))
+                }
+            }
+            .keyboardShortcut("w", modifiers: .command)
         }
         .frame(width: 0, height: 0)
         .opacity(0)
