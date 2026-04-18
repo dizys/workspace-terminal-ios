@@ -57,7 +57,7 @@ public struct WTTerminalView: UIViewRepresentable {
     }
 
     @MainActor
-    public final class Coordinator: NSObject, TerminalViewDelegate {
+    public final class Coordinator: NSObject {
         private let onSend: @Sendable (Data) -> Void
         private let onResize: @Sendable (Int, Int) -> Void
         private let onError: @Sendable (String) -> Void
@@ -100,29 +100,38 @@ public struct WTTerminalView: UIViewRepresentable {
             view = nil
         }
 
-        // MARK: - TerminalViewDelegate
-        // UIKit dispatches delegate callbacks on the main thread; conforming
-        // from a @MainActor class is consistent with that contract.
-
-        public func send(source: TerminalView, data: ArraySlice<UInt8>) {
+        // Bridges from the delegate-conformance extension into the Coordinator's
+        // private callback closures.
+        fileprivate func forwardSend(data: ArraySlice<UInt8>) {
             onSend(Data(data))
         }
-
-        public func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {
-            onResize(newRows, newCols)
+        fileprivate func forwardResize(rows: Int, cols: Int) {
+            onResize(rows, cols)
         }
-
-        public func setTerminalTitle(source: TerminalView, title: String) {}
-        public func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {}
-        public func scrolled(source: TerminalView, position: Double) {}
-        public func requestOpenLink(source: TerminalView, link: String, params: [String: String]) {}
-        public func bell(source: TerminalView) {}
-        public func clipboardCopy(source: TerminalView, content: Data) {
-            UIPasteboard.general.string = String(data: content, encoding: .utf8)
-        }
-        public func clipboardRead(source: TerminalView) -> Data? { nil }
-        public func iTermContent(source: TerminalView, content: ArraySlice<UInt8>) {}
-        public func rangeChanged(source: TerminalView, startY: Int, endY: Int) {}
     }
+}
+
+// Isolated conformance (Swift 6.2). UIKit guarantees these callbacks arrive
+// on the main thread, so the `@MainActor` constraint matches the runtime.
+extension WTTerminalView.Coordinator: @MainActor TerminalViewDelegate {
+    public func send(source: TerminalView, data: ArraySlice<UInt8>) {
+        forwardSend(data: data)
+    }
+
+    public func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {
+        forwardResize(rows: newRows, cols: newCols)
+    }
+
+    public func setTerminalTitle(source: TerminalView, title: String) {}
+    public func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {}
+    public func scrolled(source: TerminalView, position: Double) {}
+    public func requestOpenLink(source: TerminalView, link: String, params: [String: String]) {}
+    public func bell(source: TerminalView) {}
+    public func clipboardCopy(source: TerminalView, content: Data) {
+        UIPasteboard.general.string = String(data: content, encoding: .utf8)
+    }
+    public func clipboardRead(source: TerminalView) -> Data? { nil }
+    public func iTermContent(source: TerminalView, content: ArraySlice<UInt8>) {}
+    public func rangeChanged(source: TerminalView, startY: Int, endY: Int) {}
 }
 #endif
