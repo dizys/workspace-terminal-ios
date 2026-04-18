@@ -89,9 +89,10 @@ public struct AuthFeature {
                 state.pendingDeployment = deployment
                 state.error = nil
                 state.phase = .probingMethods
-                return .run { [deployment] send in
+                let factory = clientFactory
+                return .run { send in
                     do {
-                        let client = clientFactory(deployment, .default)
+                        let client = factory(deployment, .default)
                         let methods = try await client.fetchAuthMethods()
                         await send(.methodsLoaded(.success(methods)))
                     } catch {
@@ -121,9 +122,10 @@ public struct AuthFeature {
                     guard let deployment = state.pendingDeployment else { return .none }
                     state.phase = .openingOIDC
                     let provider: OIDCFlow.Provider = method == .github ? .github : .oidc
+                    let flow = oidcFlow
                     return .run { send in
                         do {
-                            let stored = try await oidcFlow.signIn(deployment: deployment, provider: provider)
+                            let stored = try await flow.signIn(deployment: deployment, provider: provider)
                             await send(.oidcSignInCompleted(.success(stored)))
                         } catch {
                             await send(.oidcSignInCompleted(.failure(Failure(error))))
@@ -136,9 +138,10 @@ public struct AuthFeature {
                 let email = state.emailInput
                 let password = state.passwordInput
                 state.phase = .finalizing
+                let login = passwordLogin
                 return .run { send in
                     do {
-                        let stored = try await passwordLogin.signIn(
+                        let stored = try await login.signIn(
                             deployment: deployment,
                             email: email,
                             password: password,
