@@ -108,11 +108,6 @@ public struct WTTerminalView: UIViewRepresentable {
         // Bridges from the delegate-conformance extension into the Coordinator's
         // private callback closures.
         fileprivate func forwardSend(data: ArraySlice<UInt8>) {
-            // TEMP: hex-dump outbound to diagnose whether SwiftTerm is generating
-            // mouse events on tap. Keystrokes are short ASCII; mouse events look
-            // like `1B 5B 3C 30 3B ...M`. Remove once tmux mouse confirmed working.
-            let hex = data.map { String(format: "%02X", $0) }.joined(separator: " ")
-            print("[WTTerminalView] outbound \(data.count) bytes: \(hex)")
             onSend(Data(data))
         }
         fileprivate func forwardResize(rows: Int, cols: Int) {
