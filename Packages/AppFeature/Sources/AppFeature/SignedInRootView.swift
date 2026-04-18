@@ -172,7 +172,7 @@ private struct SignOutCard: View {
             }
         }
         .confirmationDialog(
-            "Sign out of \(store.deployment.deployment.host)?",
+            "Sign out of \(store.deployment.host)?",
             isPresented: $confirming,
             titleVisibility: .visible
         ) {

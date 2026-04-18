@@ -46,6 +46,7 @@ public struct AuthFeature {
         case continueWithURLTapped
         case methodsLoaded(Result<AuthMethods, Failure>)
         case methodTapped(AuthMethod)
+        case backToMethodPickerTapped
         case submitPasswordTapped
         case passwordSignInCompleted(Result<StoredDeployment, Failure>)
         case oidcSignInCompleted(Result<StoredDeployment, Failure>)
@@ -132,6 +133,12 @@ public struct AuthFeature {
                         }
                     }
                 }
+
+            case .backToMethodPickerTapped:
+                state.passwordInput = ""
+                state.error = nil
+                state.phase = .choosingMethod
+                return .none
 
             case .submitPasswordTapped:
                 guard let deployment = state.pendingDeployment else { return .none }

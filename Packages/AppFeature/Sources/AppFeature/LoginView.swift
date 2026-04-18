@@ -151,6 +151,20 @@ private struct PasswordEntryStep: View {
 
     var body: some View {
         VStack(spacing: WTSpace.lg) {
+            HStack {
+                Button { store.send(.backToMethodPickerTapped) } label: {
+                    HStack(spacing: WTSpace.xs) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text("Choose another method")
+                            .font(WTFont.subheadline)
+                    }
+                    .foregroundStyle(WTColor.textSecondary)
+                }
+                .buttonStyle(.plain)
+                Spacer()
+            }
+
             WTInputField(
                 label: "Email",
                 placeholder: "you@example.com",
