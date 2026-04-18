@@ -11,10 +11,10 @@ public struct TerminalSessionView: View {
     @Bindable var store: StoreOf<TerminalFeature>
     @Dependency(\.terminalSessionStore) private var sessionStore
     @Environment(\.dismiss) private var dismiss
-    /// Whether this view is the visible/selected terminal tab. Defaults to
-    /// true for single-terminal use; the multi-tab container flips it per
-    /// TabView selection.
     private let isActive: Bool
+    /// Defer heavy SwiftTerm init until after the navigation push animation
+    /// completes, so the transition doesn't stutter.
+    @State private var isTerminalReady: Bool = false
 
     public init(store: StoreOf<TerminalFeature>, isActive: Bool = true) {
         self.store = store
@@ -24,26 +24,31 @@ public struct TerminalSessionView: View {
     public var body: some View {
         ZStack {
             WTColor.background.ignoresSafeArea()
-            WTTerminalView(
-                inbound: { inboundStream() },
-                onSend: { bytes in send(bytes: bytes) },
-                onResize: { rows, cols in
-                    store.send(.resize(TerminalSize(rows: rows, cols: cols)))
-                },
-                onError: { msg in store.send(.errorRaised(msg)) },
-                isActive: isActive
-            )
-            // Do NOT ignoreSafeArea(.bottom) — that pushes the terminal under
-            // the SwiftTerm input accessory bar + system keyboard, hiding the
-            // last lines. Respecting the bottom safe area lets SwiftTerm's
-            // UIScrollView shrink to the visible region.
+            if isTerminalReady {
+                WTTerminalView(
+                    inbound: { inboundStream() },
+                    onSend: { bytes in send(bytes: bytes) },
+                    onResize: { rows, cols in
+                        store.send(.resize(TerminalSize(rows: rows, cols: cols)))
+                    },
+                    onError: { msg in store.send(.errorRaised(msg)) },
+                    isActive: isActive
+                )
+            }
 
             StatusOverlay(phase: store.connection)
                 .padding(WTSpace.md)
         }
         .navigationTitle(store.agent.name)
         .navigationBarTitleDisplayMode(.inline)
-        .task { store.send(.onAppear) }
+        .task {
+            store.send(.onAppear)
+            // Small delay lets the navigation push animation finish before
+            // SwiftTerm's heavy init (Metal shaders, font setup, gesture
+            // recognizers) runs on the main thread.
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            isTerminalReady = true
+        }
         .onDisappear { store.send(.onDisappear) }
         .alert("Terminal error",
                isPresented: Binding(get: { store.lastError != nil },
@@ -55,17 +60,12 @@ public struct TerminalSessionView: View {
     }
 
     private func inboundStream() -> AsyncThrowingStream<Data, Error> {
-        // Bridge: cold → live, with a short polling window for the session
-        // to be attached. The reducer's .onAppear effect creates the transport
-        // and registers the session asynchronously, so the very first
-        // inboundStream() call from WTTerminalView typically sees nil. We
-        // poll for up to ~5s before giving up.
         let id = store.sessionID
         let store = sessionStore
         return AsyncThrowingStream { continuation in
             let task = Task {
                 var session: TerminalSession?
-                for _ in 0..<50 { // ≈5s at 100ms cadence
+                for _ in 0..<50 {
                     if Task.isCancelled { return }
                     if let s = await store.session(for: id) {
                         session = s
@@ -77,9 +77,6 @@ public struct TerminalSessionView: View {
                     continuation.finish()
                     return
                 }
-                // session.inbound is now a multicast AsyncStream — multiple
-                // subscribers OK; the session owns the single iteration of
-                // the underlying transport.inbound. See TerminalSession.
                 for await chunk in session.inbound {
                     continuation.yield(chunk)
                 }
@@ -121,7 +118,7 @@ private struct StatusOverlay: View {
         case let .connecting(attempt):
             badge("Connecting (try \(attempt))…", tone: .warning)
         case .connected:
-            EmptyView() // no chrome when healthy
+            EmptyView()
         case let .reconnecting(attempt):
             badge("Reconnecting (try \(attempt))…", tone: .warning)
         case let .closed(reason):
