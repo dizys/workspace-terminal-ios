@@ -37,6 +37,7 @@ public struct TerminalSessionsFeature {
     }
 
     @Dependency(\.terminalSessionStore) var sessionStore
+    @Dependency(\.dismiss) var dismiss
 
     public init() {}
 
@@ -74,19 +75,30 @@ public struct TerminalSessionsFeature {
                 // Tear down the underlying TerminalSession (closes its
                 // PTY transport) — explicit user intent to close the tab.
                 let store = sessionStore
+                let shouldDismiss = state.tabs.isEmpty
+                let dismiss = self.dismiss
                 return .run { _ in
                     if let session = await store.session(for: id) {
                         await session.close(.userInitiated)
                     }
                     await store.detach(id: id)
+                    if shouldDismiss {
+                        await dismiss()
+                    }
                 }
 
             case let .selectTab(id):
                 state.selectedID = id
                 return .none
 
+            case let .tabs(.element(id: tabID, action: .stateChanged(.closed(reason)))):
+                // Shell exited (or session torn down) — auto-close this tab.
+                // .userInitiated is the WS 1000 close that follows `exit`/`logout`.
+                // Other terminal closures (agentUnreachable, fatal) also clean up.
+                guard reason != .userInitiated || state.tabs[id: tabID] != nil else { return .none }
+                return .send(.closeTabTapped(tabID))
+
             case .tabs:
-                // Per-tab actions are handled by the composed TerminalFeature.
                 return .none
             }
         }

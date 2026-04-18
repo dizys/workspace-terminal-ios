@@ -15,13 +15,11 @@ public struct TerminalSessionsView: View {
     }
 
     public var body: some View {
-        VStack(spacing: 0) {
-            tabStrip
-            Divider().background(WTColor.border)
-            terminalPager
-        }
-        .background(WTColor.background.ignoresSafeArea())
-        .navigationTitle(store.agent.name)
+        terminalPager
+            .background(WTColor.background.ignoresSafeArea())
+        .navigationTitle(store.tabs.count > 1
+                         ? "\(store.agent.name) (\(currentTabIndex + 1)/\(store.tabs.count))"
+                         : store.agent.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -30,29 +28,25 @@ public struct TerminalSessionsView: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(WTColor.accent)
                 }
-                .keyboardShortcut("t", modifiers: .command)
+            }
+            // Hidden Cmd+T binding — keeping it on the visible button caused
+            // Mac Catalyst to render the shortcut hint inline, expanding the
+            // toolbar item width unpredictably.
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("New Tab") { store.send(.addTabTapped) }
+                    .keyboardShortcut("t", modifiers: .command)
+                    .opacity(0)
+                    .frame(width: 0, height: 0)
+                    .accessibilityHidden(true)
             }
         }
         .task { store.send(.onAppear) }
     }
 
-    private var tabStrip: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: WTSpace.xs) {
-                ForEach(store.tabs) { tab in
-                    TabPill(
-                        title: tabTitle(tab),
-                        isSelected: store.selectedID == tab.sessionID,
-                        canClose: store.tabs.count > 1,
-                        onTap: { store.send(.selectTab(tab.sessionID)) },
-                        onClose: { store.send(.closeTabTapped(tab.sessionID)) }
-                    )
-                }
-            }
-            .padding(.horizontal, WTSpace.md)
-            .padding(.vertical, WTSpace.xs)
-        }
-        .background(WTColor.surface)
+    private var currentTabIndex: Int {
+        guard let id = store.selectedID,
+              let idx = store.tabs.index(id: id) else { return 0 }
+        return idx
     }
 
     private var terminalPager: some View {
@@ -67,52 +61,11 @@ public struct TerminalSessionsView: View {
                 .tag(Optional(tabStore.sessionID))
             }
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
+        // Show small page-dot indicator only when 2+ tabs; hidden for single
+        // tab so the terminal gets the full screen.
+        .tabViewStyle(.page(indexDisplayMode: store.tabs.count > 1 ? .always : .never))
+        .indexViewStyle(.page(backgroundDisplayMode: store.tabs.count > 1 ? .always : .never))
     }
 
-    private func tabTitle(_ tab: TerminalFeature.State) -> String {
-        // Number tabs by their position so they stay distinguishable.
-        if let index = store.tabs.index(id: tab.sessionID) {
-            return "\(tab.agent.name) \(index + 1)"
-        }
-        return tab.agent.name
-    }
-}
-
-private struct TabPill: View {
-    let title: String
-    let isSelected: Bool
-    let canClose: Bool
-    let onTap: () -> Void
-    let onClose: () -> Void
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Button(action: onTap) {
-                Text(title)
-                    .font(WTFont.captionEmphasized)
-                    .foregroundStyle(isSelected ? WTColor.background : WTColor.textPrimary)
-            }
-            .buttonStyle(.plain)
-            if canClose {
-                Button(action: onClose) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(isSelected ? WTColor.background.opacity(0.7) : WTColor.textTertiary)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, WTSpace.sm)
-        .padding(.vertical, 6)
-        .background(
-            Capsule()
-                .fill(isSelected ? WTColor.accent : WTColor.surfaceElevated)
-        )
-        .overlay(
-            Capsule()
-                .stroke(isSelected ? Color.clear : WTColor.border, lineWidth: 0.5)
-        )
-    }
 }
 #endif
