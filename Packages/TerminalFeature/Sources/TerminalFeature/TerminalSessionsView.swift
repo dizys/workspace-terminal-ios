@@ -43,19 +43,22 @@ public struct TerminalSessionsView: View {
 
     // MARK: - Toolbar
 
+    // Two separate ToolbarItems instead of one with if/else. SwiftUI's toolbar
+    // layout engine reserves space for the widest variant of a conditional view
+    // inside a single ToolbarItem, causing the "extra blank" expansion bug.
     @ToolbarContentBuilder
     private var tabsControl: some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
-            if store.tabs.count <= 1 {
-                // Single-tab: just a + button.
+        if store.tabs.count <= 1 {
+            ToolbarItem(placement: .topBarTrailing) {
                 Button { store.send(.addTabTapped) } label: {
                     Image(systemName: "plus")
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(WTColor.accent)
                 }
                 .buttonStyle(.plain)
-            } else {
-                // Multi-tab: counter button opens the popover.
+            }
+        } else {
+            ToolbarItem(placement: .topBarTrailing) {
                 Button { showingTabsPopover = true } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "rectangle.stack")
