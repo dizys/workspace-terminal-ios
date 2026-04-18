@@ -23,6 +23,7 @@ public struct SignedInRootView: View {
                             WTAvatar(name: store.deployment.deployment.username ?? "u", size: 30)
                         }
                         .buttonStyle(.plain)
+                        .keyboardShortcut(",", modifiers: .command)
                     }
                 }
         } detail: {

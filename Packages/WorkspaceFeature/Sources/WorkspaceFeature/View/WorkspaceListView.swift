@@ -24,6 +24,7 @@ public struct WorkspaceListView: View {
                         .foregroundStyle(WTColor.accent)
                 }
                 .disabled(store.isLoading)
+                .keyboardShortcut("r", modifiers: .command)
             }
         }
         .refreshable { store.send(.refresh) }
