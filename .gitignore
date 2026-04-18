@@ -39,6 +39,7 @@ graph.dot
 .tuist-bin/
 .tuist-version
 .tuist/
+Derived/
 
 # SwiftPM
 .swiftpm/
