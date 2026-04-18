@@ -13,7 +13,7 @@ public struct WorkspaceListView: View {
 
     public var body: some View {
         content
-            .background(WTColor.background.ignoresSafeArea())
+            .background(WTColor.background)
             .navigationTitle("Workspaces")
             .navigationBarTitleDisplayMode(.large)
         .toolbar {
@@ -26,8 +26,6 @@ public struct WorkspaceListView: View {
                 .disabled(store.isLoading)
             }
         }
-        .toolbarBackground(WTColor.background, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
         .refreshable { store.send(.refresh) }
         .task { store.send(.onAppear) }
         .alert("Couldn't load workspaces",
@@ -39,21 +37,19 @@ public struct WorkspaceListView: View {
         }
     }
 
-    // ScrollView is always the root — keeping a stable view identity is what
-    // lets the large navigation title collapse on scroll *and* restore when
-    // you scroll back to the top. Conditional content (loader / empty state
-    // / list) lives inside the same ScrollView.
-    // ScrollView is always the root — keeping a stable view identity is what
-    // lets the system large navigation title collapse on scroll *and* restore
-    // when you scroll back to the top. Conditional content (loader / empty
-    // state / list) lives inside the same ScrollView.
+    // List (not ScrollView) is the canonical native pattern for large-title
+    // collapse-on-scroll. Apple's own apps (Mail, Settings, Notes) all use
+    // List under a NavigationStack/SplitView for this. ScrollView's bridging
+    // to UINavigationBar.prefersLargeTitles is unreliable; List always works.
     @ViewBuilder
     private var content: some View {
-        ScrollView {
+        List {
             if store.workspaces.isEmpty, store.isLoading {
                 WTCinematicLoader(label: "Loading workspaces…")
-                    .frame(minHeight: 320)
-                    .padding(.top, WTSpace.xxl)
+                    .frame(maxWidth: .infinity, minHeight: 320)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets())
             } else if store.workspaces.isEmpty {
                 WTEmptyStateView(
                     icon: "rectangle.stack.badge.plus",
@@ -62,21 +58,26 @@ public struct WorkspaceListView: View {
                     actionTitle: "Refresh",
                     action: { store.send(.refresh) }
                 )
+                .frame(maxWidth: .infinity)
                 .padding(.top, WTSpace.xxl)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets())
             } else {
-                LazyVStack(spacing: WTSpace.md) {
-                    ForEach(store.workspaces) { workspace in
-                        Button { store.send(.workspaceTapped(workspace.id)) } label: {
-                            WorkspaceCard(workspace: workspace)
-                        }
-                        .buttonStyle(WorkspaceCardButtonStyle())
+                ForEach(store.workspaces) { workspace in
+                    Button { store.send(.workspaceTapped(workspace.id)) } label: {
+                        WorkspaceCard(workspace: workspace)
                     }
+                    .buttonStyle(WorkspaceCardButtonStyle())
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: WTSpace.xs, leading: WTSpace.lg,
+                                              bottom: WTSpace.xs, trailing: WTSpace.lg))
                 }
-                .padding(.horizontal, WTSpace.lg)
-                .padding(.top, WTSpace.sm)
-                .padding(.bottom, WTSpace.xxxl)
             }
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
     }
 }
 
