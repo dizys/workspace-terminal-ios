@@ -200,24 +200,32 @@ public struct WTTerminalView: UIViewRepresentable {
         }
 
         /// Force every SwiftTerm-added UIPanGestureRecognizer to single-finger
-        /// only, so 2-finger gestures don't ALSO trigger a 1-finger mouse
-        /// drag (which tmux interprets as drag-select). SwiftTerm adds its
-        /// panMouseGesture lazily when mouseMode flips on, so this must be
-        /// called from updateUIView too.
+        /// only, AND make it require our wheel pan to fail first. Both are
+        /// needed: clamping prevents SwiftTerm's pan from accepting a 2-finger
+        /// gesture once already started; require-to-fail makes UIKit defer to
+        /// our 2-finger recognizer at gesture-begin time so SwiftTerm can't
+        /// jump-start as a 1-finger drag.
         func clampSwiftTermPanRecognizers(on view: TerminalView) {
+            guard let wheel = self.wheelPanRecognizer else { return }
             for recognizer in view.gestureRecognizers ?? [] {
                 guard let pan = recognizer as? UIPanGestureRecognizer,
-                      pan !== self.wheelPanRecognizer,
-                      pan !== view.panGestureRecognizer, // UIScrollView's own
-                      pan.maximumNumberOfTouches != 1
+                      pan !== wheel,
+                      pan !== view.panGestureRecognizer
                 else { continue }
-                pan.maximumNumberOfTouches = 1
+                if pan.maximumNumberOfTouches != 1 {
+                    pan.maximumNumberOfTouches = 1
+                    print("[WTTerminalView] clamped \(type(of: pan)) maxTouches→1")
+                }
+                // Tell SwiftTerm's pan to wait for our wheel-pan to fail
+                // before recognizing. Idempotent — UIKit dedupes.
+                pan.require(toFail: wheel)
             }
         }
 
         @objc private func handleWheelPan(_ recognizer: UIPanGestureRecognizer) {
             guard let view = self.view else { return }
             let terminal = view.getTerminal()
+            print("[WTTerminalView] wheelPan state=\(recognizer.state.rawValue) touches=\(recognizer.numberOfTouches) mode=\(terminal.mouseMode)")
             // Only forward as wheel events when host has mouse mode on; otherwise
             // let SwiftTerm's UIScrollView handle it as native scroll.
             guard terminal.mouseMode != .off else { return }
