@@ -21,7 +21,13 @@ public final class TerminalSession: @unchecked Sendable {
     /// it across `await`).
     private struct LockedState {
         var subscribers: [UUID: AsyncStream<Data>.Continuation] = [:]
+        /// Ring buffer of recent PTY bytes — replayed to any new subscriber so
+        /// re-mounting the terminal view (e.g. after navigating back) shows
+        /// the existing scrollback instead of starting blank. 64 KiB matches
+        /// Coder's own server-side reconnecting-PTY buffer.
+        var scrollback = Data()
     }
+    private static let scrollbackCap = 64 * 1024
     private let locked = OSAllocatedUnfairLock<LockedState>(initialState: LockedState())
     private var pumpTask: Task<Void, Never>?
 
@@ -42,7 +48,16 @@ public final class TerminalSession: @unchecked Sendable {
     public var inbound: AsyncStream<Data> {
         let key = UUID()
         return AsyncStream { continuation in
-            locked.withLock { $0.subscribers[key] = continuation }
+            // Replay scrollback to the new subscriber so the rendered terminal
+            // shows the same content it would have if it had been alive the
+            // whole time (e.g. user navigated back, then re-opened the agent).
+            let replay: Data = locked.withLock { state in
+                state.subscribers[key] = continuation
+                return state.scrollback
+            }
+            if !replay.isEmpty {
+                continuation.yield(replay)
+            }
             continuation.onTermination = { [weak self] _ in
                 self?.locked.withLock { $0.subscribers.removeValue(forKey: key) }
             }
@@ -76,7 +91,15 @@ public final class TerminalSession: @unchecked Sendable {
     }
 
     private func broadcast(_ chunk: Data) {
-        let conts = locked.withLock { Array($0.subscribers.values) }
+        let conts: [AsyncStream<Data>.Continuation] = locked.withLock { state in
+            // Append to scrollback ring buffer, dropping oldest bytes once we
+            // exceed the cap.
+            state.scrollback.append(chunk)
+            if state.scrollback.count > Self.scrollbackCap {
+                state.scrollback.removeFirst(state.scrollback.count - Self.scrollbackCap)
+            }
+            return Array(state.subscribers.values)
+        }
         for cont in conts { cont.yield(chunk) }
     }
 

@@ -17,6 +17,11 @@ public struct SignedInFeature {
         public var detail: WorkspaceDetailFeature.State?
         public var isSettingsPresented: Bool = false
         @Presents public var terminals: TerminalSessionsFeature.State?
+        /// App-level cache: live `TerminalSessionsFeature.State` per agent.id.
+        /// Survives navigation back/forward so reopening an agent restores
+        /// existing tabs (and the underlying TerminalSessions in the
+        /// TerminalSessionStore stay alive via `.onDisappear` no-op).
+        public var activeTerminals: [UUID: TerminalSessionsFeature.State] = [:]
 
         public init(deployment: StoredDeployment) {
             self.deployment = deployment
@@ -59,10 +64,29 @@ public struct SignedInFeature {
                 return .none
 
             case let .openTerminal(agent):
-                state.terminals = TerminalSessionsFeature.State(
-                    agent: agent,
-                    deployment: state.deployment.deployment
-                )
+                // Restore existing tabs if user previously opened this agent
+                // and didn't close everything. Otherwise create a fresh state.
+                if let cached = state.activeTerminals[agent.id] {
+                    state.terminals = cached
+                } else {
+                    state.terminals = TerminalSessionsFeature.State(
+                        agent: agent,
+                        deployment: state.deployment.deployment
+                    )
+                }
+                return .none
+
+            case .terminals(.dismiss):
+                // User navigated back. Snapshot the live state into our cache
+                // so reopening the agent restores the same tabs.
+                if let current = state.terminals {
+                    if current.tabs.isEmpty {
+                        // Last tab closed via shell exit / × → forget the cache
+                        state.activeTerminals.removeValue(forKey: current.agent.id)
+                    } else {
+                        state.activeTerminals[current.agent.id] = current
+                    }
+                }
                 return .none
 
             case .terminals:
