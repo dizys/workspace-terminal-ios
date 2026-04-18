@@ -225,31 +225,40 @@ public struct WTTerminalView: UIViewRepresentable {
         @objc private func handleWheelPan(_ recognizer: UIPanGestureRecognizer) {
             guard let view = self.view else { return }
             let terminal = view.getTerminal()
-            print("[WTTerminalView] wheelPan state=\(recognizer.state.rawValue) touches=\(recognizer.numberOfTouches) mode=\(terminal.mouseMode)")
-            // Only forward as wheel events when host has mouse mode on; otherwise
-            // let SwiftTerm's UIScrollView handle it as native scroll.
             guard terminal.mouseMode != .off else { return }
 
             switch recognizer.state {
             case .began:
                 wheelPanLastY = recognizer.translation(in: view).y
             case .changed:
+                // translation(in:) is cumulative since gesture start.
                 let now = recognizer.translation(in: view).y
                 let delta = now - wheelPanLastY
                 let cellHeight = max(view.bounds.height / CGFloat(max(terminal.rows, 1)), 1)
+                // Only emit when accumulated movement crosses a full cell.
+                guard abs(delta) >= cellHeight else { return }
                 let lines = Int(delta / cellHeight)
                 if lines == 0 { return }
-                wheelPanLastY = now
+                // Advance the baseline by exactly the lines we consumed,
+                // so leftover sub-cell movement carries into next tick.
+                wheelPanLastY += CGFloat(lines) * cellHeight
 
-                // SGR mouse-wheel: button 64 = wheel up, 65 = wheel down.
-                // We pass through the terminal's own sendEvent so encoding
-                // matches the active mouseProtocol (sgr / urxvt / utf8).
-                let wheelButton = lines > 0 ? 64 : 65
+                // Drag DOWN (positive translation) = scroll content DOWN =
+                //   tmux wheel-DOWN (button 65). And vice versa.
+                let wheelButton = lines > 0 ? 65 : 64
                 let count = abs(lines)
+
+                // Use the actual gesture location so the event lands inside
+                // the active pane, not the status bar at row 0.
+                let location = recognizer.location(in: view)
                 let cols = max(terminal.cols, 1)
-                let mid = cols / 2
+                let rows = max(terminal.rows, 1)
+                let cellWidth = max(view.bounds.width / CGFloat(cols), 1)
+                let col = max(0, min(cols - 1, Int(location.x / cellWidth)))
+                let row = max(0, min(rows - 1, Int(location.y / cellHeight)))
+
                 for _ in 0..<count {
-                    terminal.sendEvent(buttonFlags: wheelButton, x: mid, y: 0)
+                    terminal.sendEvent(buttonFlags: wheelButton, x: col, y: row)
                 }
             default:
                 break
