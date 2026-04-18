@@ -85,12 +85,18 @@ app() {
   "$tuist" install
   "$tuist" generate --no-open
 
+  local logfile="xcodebuild.log"
+  rm -f "$logfile"
+
+  # Always tee the raw log for forensics, even when xcbeautify is filtering.
+  # set -o pipefail (set at top of script) ensures non-zero from xcodebuild
+  # propagates through the pipeline.
   local pipe="cat"
   if [[ -n "$xcbeautify" ]]; then
     pipe="$xcbeautify"
   fi
 
-  xcodebuild \
+  if xcodebuild \
     -workspace WorkspaceTerminal.xcworkspace \
     -scheme WorkspaceTerminal \
     -configuration Debug \
@@ -100,8 +106,19 @@ app() {
     CODE_SIGN_IDENTITY="" \
     CODE_SIGNING_REQUIRED=NO \
     CODE_SIGNING_ALLOWED=NO \
-    build | $pipe
-  ok "App build clean"
+    build 2>&1 | tee "$logfile" | $pipe; then
+    ok "App build clean"
+    return 0
+  fi
+
+  err "xcodebuild failed. Surfacing the actual errors from $logfile:"
+  echo
+  printf '\033[1;31m=== error: lines ===\033[0m\n'
+  grep -E '(error:|warning: build settings)' "$logfile" | grep -v 'warning:.*deprecat' | head -30 || echo "(no error: lines found — see $logfile tail below)"
+  echo
+  printf '\033[1;31m=== last 60 lines of xcodebuild.log ===\033[0m\n'
+  tail -n 60 "$logfile"
+  exit 1
 }
 
 case "${1:-all}" in
