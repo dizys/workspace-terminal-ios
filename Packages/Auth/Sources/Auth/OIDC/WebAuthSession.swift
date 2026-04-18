@@ -51,15 +51,16 @@ public final class LiveWebAuthSession: NSObject, OIDCFlow.AuthSession, @unchecke
     }
 }
 
-/// A Coder session token has the shape `<id>-<secret>` where both halves
-/// are alphanumeric. Reject anything else — older versions of the scraper
-/// got fooled by random alphanumeric DOM nodes.
+/// A Coder session token has the exact shape `<10-char-id>-<22-char-secret>`,
+/// both halves alphanumeric. Coder's server validates these lengths
+/// strictly — a 13-char id, for example, is rejected with "invalid API
+/// key ID length, expected 10".
 ///
 /// Public so the OIDCFlow layer + tests can share the same definition.
 public enum CoderTokenFormat {
-    /// Coder uses 10-char IDs and 22+ char secrets, but be lenient about
-    /// length to survive future tweaks. Single dash as separator.
-    public static let pattern = #"^[A-Za-z0-9]{8,40}-[A-Za-z0-9]{16,80}$"#
+    /// Strict pattern matching Coder's own validation. Anchored to the
+    /// whole string so substring matches don't leak through.
+    public static let pattern = #"^[A-Za-z0-9]{10}-[A-Za-z0-9]{22}$"#
 
     public static func isValid(_ value: String) -> Bool {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -233,21 +234,27 @@ private let scrapeScript = #"""
   if (window.__coderTokenScraperInstalled) return;
   window.__coderTokenScraperInstalled = true;
 
-  // Coder session tokens are exactly <id>-<secret>; reject anything else.
-  var TOKEN_REGEX = /\b([A-Za-z0-9]{8,40}-[A-Za-z0-9]{16,80})\b/;
+  // Coder session tokens are exactly <10-char-id>-<22-char-secret>.
+  // Coder's server validates these lengths strictly. Use word boundaries
+  // so we don't match a longer alphanumeric string that happens to
+  // contain a token-shaped substring.
+  var TOKEN_REGEX = /(?:^|[^A-Za-z0-9])([A-Za-z0-9]{10}-[A-Za-z0-9]{22})(?:$|[^A-Za-z0-9])/;
 
   function extractTokenFrom(text) {
     if (!text) return null;
     var s = ("" + text).trim();
+    // First try strict whole-string match (most reliable for inputs).
+    if (/^[A-Za-z0-9]{10}-[A-Za-z0-9]{22}$/.test(s)) return s;
+    // Then try in-context match for text that has surrounding content.
     var m = s.match(TOKEN_REGEX);
     return m ? m[1] : null;
   }
 
   function findToken() {
-    // Try inputs first (most reliable).
-    var inputs = document.querySelectorAll('input');
+    // Try inputs first (most reliable). Look for both .value and .defaultValue.
+    var inputs = document.querySelectorAll('input, textarea');
     for (var i = 0; i < inputs.length; i++) {
-      var t = extractTokenFrom(inputs[i].value);
+      var t = extractTokenFrom(inputs[i].value || inputs[i].defaultValue);
       if (t) return t;
     }
     // Then specific Coder containers.
