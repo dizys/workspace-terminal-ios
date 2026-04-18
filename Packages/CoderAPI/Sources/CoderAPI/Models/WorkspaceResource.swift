@@ -42,4 +42,20 @@ public struct WorkspaceResource: Sendable, Hashable, Codable, Identifiable {
         case icon
         case agents
     }
+
+    // Defensive decode — Coder omits `agents` (and may omit `icon`) for
+    // resources that don't have agents (e.g. random_string resources).
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(UUID.self, forKey: .id)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.type = try container.decode(String.self, forKey: .type)
+        self.createdAt = try container.decode(Date.self, forKey: .createdAt)
+        self.jobID = try container.decode(UUID.self, forKey: .jobID)
+        self.workspaceTransition = try container.decode(
+            WorkspaceBuild.Transition.self, forKey: .workspaceTransition
+        )
+        self.icon = try container.decodeIfPresent(String.self, forKey: .icon)
+        self.agents = try container.decodeIfPresent([WorkspaceAgent].self, forKey: .agents) ?? []
+    }
 }

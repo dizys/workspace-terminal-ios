@@ -108,6 +108,28 @@ public struct WorkspaceBuild: Sendable, Hashable, Codable, Identifiable {
         case updatedAt = "updated_at"
         case deadline
     }
+
+    // Defensive decode — Coder may omit `resources` on early-stage builds
+    // and `reason` on legacy data; default both rather than failing.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(UUID.self, forKey: .id)
+        self.workspaceID = try container.decode(UUID.self, forKey: .workspaceID)
+        self.workspaceName = try container.decode(String.self, forKey: .workspaceName)
+        self.workspaceOwnerID = try container.decode(UUID.self, forKey: .workspaceOwnerID)
+        self.workspaceOwnerName = try container.decode(String.self, forKey: .workspaceOwnerName)
+        self.templateVersionID = try container.decode(UUID.self, forKey: .templateVersionID)
+        self.buildNumber = try container.decode(Int.self, forKey: .buildNumber)
+        self.transition = try container.decode(Transition.self, forKey: .transition)
+        self.initiatorID = try container.decode(UUID.self, forKey: .initiatorID)
+        self.initiatorName = try container.decode(String.self, forKey: .initiatorName)
+        self.job = try container.decode(ProvisionerJob.self, forKey: .job)
+        self.reason = try container.decodeIfPresent(Reason.self, forKey: .reason) ?? .initiator
+        self.resources = try container.decodeIfPresent([WorkspaceResource].self, forKey: .resources) ?? []
+        self.createdAt = try container.decode(Date.self, forKey: .createdAt)
+        self.updatedAt = try container.decode(Date.self, forKey: .updatedAt)
+        self.deadline = try container.decodeIfPresent(Date.self, forKey: .deadline)
+    }
 }
 
 /// Coder's provisioner job — the unit of work that performs a build transition.
