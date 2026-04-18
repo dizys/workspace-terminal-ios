@@ -23,7 +23,9 @@ public struct TerminalSessionsView: View {
     public var body: some View {
         terminalPager
             .background(WTColor.background.ignoresSafeArea())
-            .background(hiddenShortcuts)            // Cmd+T binding without toolbar layout interference
+            // DIAG: Cmd+T temporarily removed to isolate whether the hidden
+            // shortcut button is causing the toolbar's trailing whitespace.
+            // .background(hiddenShortcuts)
             .navigationTitle(store.agent.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { tabsControl }
