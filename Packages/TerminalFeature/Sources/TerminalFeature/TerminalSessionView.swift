@@ -82,14 +82,13 @@ public struct TerminalSessionView: View {
                     continuation.finish()
                     return
                 }
-                do {
-                    for try await chunk in session.inbound {
-                        continuation.yield(chunk)
-                    }
-                    continuation.finish()
-                } catch {
-                    continuation.finish(throwing: error)
+                // session.inbound is now a multicast AsyncStream — multiple
+                // subscribers OK; the session owns the single iteration of
+                // the underlying transport.inbound. See TerminalSession.
+                for await chunk in session.inbound {
+                    continuation.yield(chunk)
                 }
+                continuation.finish()
             }
             continuation.onTermination = { _ in task.cancel() }
         }
