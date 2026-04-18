@@ -45,7 +45,12 @@ final class WTKeyBar: UIInputView {
 
         scroll.translatesAutoresizingMaskIntoConstraints = false
         scroll.showsHorizontalScrollIndicator = false
+        scroll.showsVerticalScrollIndicator = false
         scroll.alwaysBounceHorizontal = true
+        scroll.alwaysBounceVertical = false
+        scroll.bounces = true   // horizontal bounce only (vertical disabled below)
+        scroll.contentInsetAdjustmentBehavior = .never
+        scroll.isDirectionalLockEnabled = true
         addSubview(scroll)
 
         stack.translatesAutoresizingMaskIntoConstraints = false
