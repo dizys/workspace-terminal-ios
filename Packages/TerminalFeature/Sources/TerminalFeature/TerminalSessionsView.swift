@@ -148,7 +148,7 @@ private struct TabsPopover: View {
                 .foregroundStyle(WTColor.textTertiary)
                 .monospacedDigit()
         }
-        .padding(.horizontal, WTSpace.lg)
+        .padding(.horizontal, WTSpace.xl)
         .padding(.vertical, WTSpace.md)
     }
 
@@ -216,8 +216,11 @@ private struct TabsPopover: View {
 
     private var newTabRow: some View {
         Button {
-            store.send(.addTabTapped)
-            onDismiss()
+            let dismiss = onDismiss
+            dismiss()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                store.send(.addTabTapped)
+            }
         } label: {
             HStack(spacing: WTSpace.sm) {
                 Image(systemName: "plus")
@@ -229,7 +232,7 @@ private struct TabsPopover: View {
                     .foregroundStyle(WTColor.accent)
                 Spacer()
             }
-            .padding(.horizontal, WTSpace.lg)
+            .padding(.horizontal, WTSpace.xl)
             .padding(.vertical, WTSpace.md)
             .contentShape(Rectangle())
         }
