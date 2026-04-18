@@ -41,20 +41,27 @@ public struct WorkspaceListView: View {
         }
     }
 
+    // ScrollView is always the root — keeping a stable view identity is what
+    // lets the large navigation title collapse on scroll *and* restore when
+    // you scroll back to the top. Conditional content (loader / empty state
+    // / list) lives inside the same ScrollView.
     @ViewBuilder
     private var content: some View {
-        if store.workspaces.isEmpty, store.isLoading {
-            WTCinematicLoader(label: "Loading workspaces…")
-        } else if store.workspaces.isEmpty {
-            WTEmptyStateView(
-                icon: "rectangle.stack.badge.plus",
-                title: "No workspaces yet",
-                message: "Create one in your Coder dashboard, then pull to refresh.",
-                actionTitle: "Refresh",
-                action: { store.send(.refresh) }
-            )
-        } else {
-            ScrollView {
+        ScrollView {
+            if store.workspaces.isEmpty, store.isLoading {
+                WTCinematicLoader(label: "Loading workspaces…")
+                    .frame(minHeight: 320)
+                    .padding(.top, WTSpace.xxl)
+            } else if store.workspaces.isEmpty {
+                WTEmptyStateView(
+                    icon: "rectangle.stack.badge.plus",
+                    title: "No workspaces yet",
+                    message: "Create one in your Coder dashboard, then pull to refresh.",
+                    actionTitle: "Refresh",
+                    action: { store.send(.refresh) }
+                )
+                .padding(.top, WTSpace.xxl)
+            } else {
                 LazyVStack(spacing: WTSpace.md) {
                     ForEach(store.workspaces) { workspace in
                         Button { store.send(.workspaceTapped(workspace.id)) } label: {
