@@ -23,21 +23,10 @@ public struct TerminalSessionsView: View {
     public var body: some View {
         terminalPager
             .background(WTColor.background.ignoresSafeArea())
-            .background(hiddenShortcuts)            // Cmd+T binding (verified not the cause of trailing blank)
+            .background(hiddenShortcuts)
             .navigationTitle(store.agent.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { tabsControl }
-            // Popover attached to the BODY (not the toolbar button) so the
-            // toolbar button doesn't reserve trailing anchor-area space.
-            .popover(isPresented: $showingTabsPopover, arrowEdge: .top) {
-                TabsPopover(
-                    store: store,
-                    onDismiss: { showingTabsPopover = false }
-                )
-                .frame(minWidth: 280, idealWidth: 320, maxWidth: 360)
-                .frame(idealHeight: 320, maxHeight: 480)
-                .presentationCompactAdaptation(.popover)
-            }
             .task { store.send(.onAppear) }
     }
 
@@ -71,6 +60,15 @@ public struct TerminalSessionsView: View {
                     .foregroundStyle(WTColor.accent)
                 }
                 .buttonStyle(.plain)
+                .popover(isPresented: $showingTabsPopover, arrowEdge: .top) {
+                    TabsPopover(
+                        store: store,
+                        onDismiss: { showingTabsPopover = false }
+                    )
+                    .frame(minWidth: 280, idealWidth: 320, maxWidth: 360)
+                    .frame(idealHeight: 320, maxHeight: 480)
+                    .presentationCompactAdaptation(.popover)
+                }
             }
         }
     }
@@ -184,8 +182,16 @@ private struct TabsPopover: View {
                                     .foregroundStyle(WTColor.accent)
                             }
                             Button {
-                                store.send(.closeTabTapped(tab.sessionID))
-                                if store.tabs.count <= 1 { onDismiss() }
+                                // Dismiss FIRST so the popover closes cleanly
+                                // before the tabs array mutates underneath it.
+                                // The closeTabTapped action fires after dismiss
+                                // completes, preventing the popover from
+                                // re-anchoring mid-close.
+                                let tabID = tab.sessionID
+                                onDismiss()
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                    store.send(.closeTabTapped(tabID))
+                                }
                             } label: {
                                 Image(systemName: "xmark")
                                     .font(.system(size: 12, weight: .semibold))
