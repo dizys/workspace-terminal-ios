@@ -1,3 +1,4 @@
+import CoderAPI
 import Testing
 @testable import Auth
 
@@ -10,9 +11,8 @@ struct AuthTests {
         #expect(Auth.callbackPath == "/callback")
     }
 
-    @Test("SessionToken wraps a string")
-    func tokenWraps() {
-        let token = SessionToken("abc123")
-        #expect(token.value == "abc123")
+    @Test("Callback URL composes scheme/host/path")
+    func callbackURLComposed() {
+        #expect(Auth.callbackURL.absoluteString == "workspaceterminal://auth/callback")
     }
 }

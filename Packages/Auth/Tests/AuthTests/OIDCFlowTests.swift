@@ -12,8 +12,8 @@ struct OIDCFlowURLTests {
         let url = flow.buildAuthURL(deployment: dep, provider: .oidc, state: "STATE_A")
         let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)!
         #expect(comps.path.hasSuffix("/api/v2/users/oidc/callback"))
-        let q = Dictionary(uniqueKeysWithValues: (comps.queryItems ?? []).compactMap {
-            $0.value.map { v in ($0.name, v) }
+        let q = Dictionary(uniqueKeysWithValues: (comps.queryItems ?? []).compactMap { item in
+            item.value.map { v in (item.name, v) }
         })
         #expect(q["state"] == "STATE_A")
         #expect(q["redirect"] == Auth.callbackURL.absoluteString)
