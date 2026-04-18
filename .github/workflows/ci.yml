@@ -17,7 +17,7 @@ env:
 jobs:
   lint:
     name: Lint
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v2
@@ -30,7 +30,7 @@ jobs:
 
   test-packages:
     name: Test (${{ matrix.package }})
-    runs-on: macos-15
+    runs-on: macos-26
     strategy:
       fail-fast: false
       matrix:
@@ -47,8 +47,8 @@ jobs:
           - TestSupport
     steps:
       - uses: actions/checkout@v5
-      - name: Select Xcode 16.4
-        run: sudo xcode-select -s /Applications/Xcode_16.4.app
+      - name: Select Xcode 26.2
+        run: sudo xcode-select -s /Applications/Xcode_26.2.app
       - name: Cache SwiftPM
         uses: actions/cache@v4
         with:
@@ -65,12 +65,12 @@ jobs:
 
   build-app:
     name: Build app (Tuist)
-    runs-on: macos-15
+    runs-on: macos-26
     needs: [lint]
     steps:
       - uses: actions/checkout@v5
-      - name: Select Xcode 16.4
-        run: sudo xcode-select -s /Applications/Xcode_16.4.app
+      - name: Select Xcode 26.2
+        run: sudo xcode-select -s /Applications/Xcode_26.2.app
       - uses: jdx/mise-action@v2
         with:
           version: 2025.1.6
@@ -116,20 +116,18 @@ jobs:
 
   test-app:
     name: Test app (${{ matrix.device }})
-    runs-on: macos-15
+    runs-on: macos-26
     needs: [build-app]
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - device: "iPhone 16 Pro"
-            os: "18.4"
-          - device: "iPad Pro 13-inch (M4)"
-            os: "18.4"
+        device:
+          - "iPhone 17 Pro"
+          - "iPad Pro 13-inch (M4)"
     steps:
       - uses: actions/checkout@v5
-      - name: Select Xcode 16.4
-        run: sudo xcode-select -s /Applications/Xcode_16.4.app
+      - name: Select Xcode 26.2
+        run: sudo xcode-select -s /Applications/Xcode_26.2.app
       - uses: jdx/mise-action@v2
         with:
           version: 2025.1.6
@@ -148,7 +146,7 @@ jobs:
             -workspace CoderTerminal.xcworkspace \
             -scheme CoderTerminal \
             -configuration Debug \
-            -destination "platform=iOS Simulator,name=${{ matrix.device }},OS=${{ matrix.os }}" \
+            -destination "platform=iOS Simulator,name=${{ matrix.device }}" \
             -derivedDataPath build \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
