@@ -44,6 +44,11 @@ public struct WTTerminalView: UIViewRepresentable {
         view.backgroundColor = UIColor(WTColor.background)
         view.nativeForegroundColor = UIColor(WTColor.textPrimary)
         view.nativeBackgroundColor = UIColor(WTColor.background)
+        // Forward iOS taps/scrolls to the host as xterm mouse events when the
+        // remote app (tmux, vim, htop) requests mouse mode. SwiftTerm defaults
+        // this to true, but we set it explicitly so future SwiftTerm releases
+        // can't silently flip the default.
+        view.allowMouseReporting = true
         context.coordinator.attach(view: view, inbound: inbound())
         return view
     }
