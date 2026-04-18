@@ -64,8 +64,9 @@ public struct SignedInFeature {
 
             case .signOutTapped:
                 let id = state.deployment.id
+                let store = deploymentStore
                 return .run { send in
-                    try? await deploymentStore.remove(id: id)
+                    try? await store.remove(id: id)
                     await send(.signedOut)
                 }
 

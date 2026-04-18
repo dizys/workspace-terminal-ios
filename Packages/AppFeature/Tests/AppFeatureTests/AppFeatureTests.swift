@@ -22,7 +22,7 @@ struct AppFeatureTests {
         await store.send(.appLaunched)
         await store.receive(.purchaseStatusLoaded(.purchased(transactionID: 1)))
         await store.receive(.activeDeploymentLoaded(nil))
-        #expect({ if case .auth = store.state.route { return true } else { return false } }())
+        #expect(store.state.phase == .auth)
     }
 
     @Test("appLaunched routes to signedIn when an active deployment exists")
@@ -45,6 +45,6 @@ struct AppFeatureTests {
         await store.send(.appLaunched)
         await store.receive(.purchaseStatusLoaded(.purchased(transactionID: 1)))
         await store.receive(\.activeDeploymentLoaded)
-        #expect({ if case .signedIn = store.state.route { return true } else { return false } }())
+        #expect(store.state.phase == .signedIn)
     }
 }

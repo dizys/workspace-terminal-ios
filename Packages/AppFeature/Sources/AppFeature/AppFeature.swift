@@ -1,5 +1,4 @@
 import Auth
-import CasePaths
 import CoderAPI
 import ComposableArchitecture
 import Foundation
@@ -11,25 +10,31 @@ import WorkspaceFeature
 ///   - DeploymentStore (active + known deployments persisted in Keychain)
 ///   - Auth flow (login screen when no active deployment)
 ///   - Workspaces (list + detail when signed in)
+///
+/// Routing is modeled as a `Phase` enum + optional substates rather than a
+/// single `Route` enum. This avoids the `@Reducer enum` ceremony for cases
+/// that have no associated reducer (`.launching`, `.paywall`) while still
+/// supporting `.ifLet`-style child-reducer composition.
 @Reducer
 public struct AppFeature {
     @ObservableState
     public struct State: Equatable {
         public var purchaseStatus: PurchaseStatus
-        public var route: Route
+        public var phase: Phase
+        public var auth: AuthFeature.State?
+        public var signedIn: SignedInFeature.State?
 
-        public init(purchaseStatus: PurchaseStatus = .unknown, route: Route = .launching) {
+        public init(purchaseStatus: PurchaseStatus = .unknown, phase: Phase = .launching) {
             self.purchaseStatus = purchaseStatus
-            self.route = route
+            self.phase = phase
         }
     }
 
-    @CasePathable
-    public enum Route: Equatable {
+    public enum Phase: Sendable, Equatable {
         case launching
         case paywall
-        case auth(AuthFeature.State)
-        case signedIn(SignedInFeature.State)
+        case auth
+        case signedIn
     }
 
     public enum Action: Equatable {
@@ -48,48 +53,56 @@ public struct AppFeature {
         Reduce { state, action in
             switch action {
             case .appLaunched:
-                state.route = .launching
+                state.phase = .launching
+                let store = deploymentStore
                 return .run { send in
-                    // 1. Check the purchase entitlement (stub for now).
                     await send(.purchaseStatusLoaded(.purchased(transactionID: 1)))
-                    // 2. Load the active deployment from Keychain, if any.
-                    let active = try? await deploymentStore.activeDeployment()
+                    let active = try? await store.activeDeployment()
                     await send(.activeDeploymentLoaded(active))
                 }
 
             case let .purchaseStatusLoaded(status):
                 state.purchaseStatus = status
                 if !status.isEntitled {
-                    state.route = .paywall
+                    state.phase = .paywall
+                    state.auth = nil
+                    state.signedIn = nil
                 }
                 return .none
 
             case let .activeDeploymentLoaded(stored):
                 if let stored {
-                    state.route = .signedIn(SignedInFeature.State(deployment: stored))
+                    state.phase = .signedIn
+                    state.signedIn = SignedInFeature.State(deployment: stored)
+                    state.auth = nil
                 } else if state.purchaseStatus.isEntitled {
-                    state.route = .auth(AuthFeature.State())
+                    state.phase = .auth
+                    state.auth = AuthFeature.State()
+                    state.signedIn = nil
                 }
                 return .none
 
             case let .auth(.signedIn(stored)):
+                let store = deploymentStore
                 return .run { send in
-                    try? await deploymentStore.upsertActive(stored)
+                    try? await store.upsertActive(stored)
                     await send(.activeDeploymentLoaded(stored))
                 }
 
             case .signedIn(.signedOut):
-                state.route = .auth(AuthFeature.State())
+                state.phase = .auth
+                state.auth = AuthFeature.State()
+                state.signedIn = nil
                 return .none
 
             case .auth, .signedIn:
                 return .none
             }
         }
-        .ifCaseLet(\.route.auth, action: \.auth) {
+        .ifLet(\.auth, action: \.auth) {
             AuthFeature()
         }
-        .ifCaseLet(\.route.signedIn, action: \.signedIn) {
+        .ifLet(\.signedIn, action: \.signedIn) {
             SignedInFeature()
         }
     }

@@ -15,17 +15,17 @@ public struct AppRootView: View {
 
     public var body: some View {
         Group {
-            switch store.route {
+            switch store.phase {
             case .launching:
                 LaunchView()
             case .paywall:
                 PaywallStubView()
             case .auth:
-                if let authStore = store.scope(state: \.route.auth, action: \.auth) {
+                if let authStore = store.scope(state: \.auth, action: \.auth) {
                     NavigationStack { LoginView(store: authStore) }
                 }
             case .signedIn:
-                if let signedInStore = store.scope(state: \.route.signedIn, action: \.signedIn) {
+                if let signedInStore = store.scope(state: \.signedIn, action: \.signedIn) {
                     SignedInRootView(store: signedInStore)
                 }
             }
