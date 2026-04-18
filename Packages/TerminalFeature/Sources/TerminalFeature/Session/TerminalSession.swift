@@ -1,5 +1,6 @@
 import CoderAPI
 import Foundation
+import os.lock
 import PTYTransport
 
 /// One terminal session — a thin actor over a single `PTYTransport`.
@@ -16,10 +17,13 @@ public final class TerminalSession: @unchecked Sendable {
     public let agent: WorkspaceAgent
     public let transport: any PTYTransport
 
-    private let lock = NSLock()
-    private var subscribers: [UUID: AsyncStream<Data>.Continuation] = [:]
+    /// State protected by an unfair lock (async-context-safe; we never hold
+    /// it across `await`).
+    private struct LockedState {
+        var subscribers: [UUID: AsyncStream<Data>.Continuation] = [:]
+    }
+    private let locked = OSAllocatedUnfairLock<LockedState>(initialState: LockedState())
     private var pumpTask: Task<Void, Never>?
-    private var pumpError: Error?
 
     public init(id: UUID, agent: WorkspaceAgent, transport: any PTYTransport) {
         self.id = id
@@ -38,13 +42,9 @@ public final class TerminalSession: @unchecked Sendable {
     public var inbound: AsyncStream<Data> {
         let key = UUID()
         return AsyncStream { continuation in
-            lock.lock()
-            subscribers[key] = continuation
-            lock.unlock()
+            locked.withLock { $0.subscribers[key] = continuation }
             continuation.onTermination = { [weak self] _ in
-                self?.lock.lock()
-                self?.subscribers.removeValue(forKey: key)
-                self?.lock.unlock()
+                self?.locked.withLock { $0.subscribers.removeValue(forKey: key) }
             }
         }
     }
@@ -68,27 +68,25 @@ public final class TerminalSession: @unchecked Sendable {
                     self?.broadcast(chunk)
                 }
             } catch {
-                self?.lock.lock()
-                self?.pumpError = error
-                let conts = self?.subscribers.values.map { $0 } ?? []
-                self?.subscribers.removeAll()
-                self?.lock.unlock()
-                for cont in conts { cont.finish() }
+                self?.finishAllSubscribers()
                 return
             }
-            self?.lock.lock()
-            let conts = self?.subscribers.values.map { $0 } ?? []
-            self?.subscribers.removeAll()
-            self?.lock.unlock()
-            for cont in conts { cont.finish() }
+            self?.finishAllSubscribers()
         }
     }
 
     private func broadcast(_ chunk: Data) {
-        lock.lock()
-        let conts = Array(subscribers.values)
-        lock.unlock()
+        let conts = locked.withLock { Array($0.subscribers.values) }
         for cont in conts { cont.yield(chunk) }
+    }
+
+    private func finishAllSubscribers() {
+        let conts: [AsyncStream<Data>.Continuation] = locked.withLock { state in
+            let conts = Array(state.subscribers.values)
+            state.subscribers.removeAll()
+            return conts
+        }
+        for cont in conts { cont.finish() }
     }
 }
 
