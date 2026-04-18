@@ -65,7 +65,11 @@ public struct WTTerminalView: UIViewRepresentable {
     }
 
     public func updateUIView(_ uiView: TerminalView, context: Context) {
-        // No-op for now; future: theme changes propagate here.
+        // Auto-focus once the view is in the window. SwiftTerm only becomes
+        // first responder via its own singleTap handler, which means the user
+        // had to tap once before the keyboard + accessory bar appeared. We
+        // grab focus on the first updateUIView pass so typing works immediately.
+        context.coordinator.autoFocusIfNeeded(uiView)
     }
 
     public static func dismantleUIView(_ uiView: TerminalView, coordinator: Coordinator) {
@@ -119,10 +123,39 @@ public struct WTTerminalView: UIViewRepresentable {
         // Bridges from the delegate-conformance extension into the Coordinator's
         // private callback closures.
         fileprivate func forwardSend(data: ArraySlice<UInt8>) {
+            // DIAG: hex-dump outbound while investigating the 2-finger-paste bug.
+            // Mouse-wheel events look like `1B 5B 3C 40 ...M` (button 64) or
+            // `1B 5B 3C 41 ...M` (65). Clipboard text would appear as a long
+            // ASCII chunk. Remove once paste-on-2-finger root-caused.
+            let hex = data.prefix(64).map { String(format: "%02X", $0) }.joined(separator: " ")
+            print("[WTTerminalView] outbound \(data.count)B: \(hex)\(data.count > 64 ? " …" : "")")
             onSend(Data(data))
         }
         fileprivate func forwardResize(rows: Int, cols: Int) {
             onResize(rows, cols)
+        }
+
+        // MARK: - Auto-focus
+
+        private var didRequestInitialFocus: Bool = false
+        private var focusTask: Task<Void, Never>?
+
+        func autoFocusIfNeeded(_ view: TerminalView) {
+            guard !didRequestInitialFocus else { return }
+            didRequestInitialFocus = true
+            // becomeFirstResponder() requires the view to be in a window. The
+            // first updateUIView pass usually happens before window-attach, so
+            // poll briefly until the view is in the hierarchy.
+            focusTask = Task { @MainActor [weak view] in
+                for _ in 0..<30 { // up to ~1.5s
+                    guard let view else { return }
+                    if view.window != nil {
+                        _ = view.becomeFirstResponder()
+                        return
+                    }
+                    try? await Task.sleep(nanoseconds: 50_000_000)
+                }
+            }
         }
 
         // MARK: - Gesture customizations
@@ -131,15 +164,20 @@ public struct WTTerminalView: UIViewRepresentable {
         private var wheelPanRecognizer: UIPanGestureRecognizer?
         private var wheelPanLastY: CGFloat = 0
 
-        /// Add a UIGestureRecognizerDelegate to SwiftTerm's UILongPressGestureRecognizer
-        /// that suppresses it whenever the remote terminal has mouse mode on.
+        /// Add a UIGestureRecognizerDelegate to ALL UILongPressGestureRecognizers
+        /// that suppresses them whenever the remote terminal has mouse mode on.
+        /// Diagnostics print every recognizer so we can verify which ones we hit.
         func installLongPressGuard(on view: TerminalView) {
-            for recognizer in view.gestureRecognizers ?? [] {
-                guard let lp = recognizer as? UILongPressGestureRecognizer else { continue }
-                let guardDelegate = LongPressGuard(view: view)
-                lp.delegate = guardDelegate
-                self.longPressGuard = guardDelegate
-                return
+            let guardDelegate = LongPressGuard(view: view)
+            self.longPressGuard = guardDelegate
+            print("[WTTerminalView] gesture recognizers attached to TerminalView:")
+            for (idx, recognizer) in (view.gestureRecognizers ?? []).enumerated() {
+                let typeName = String(describing: type(of: recognizer))
+                print("  [\(idx)] \(typeName)")
+                if let lp = recognizer as? UILongPressGestureRecognizer {
+                    lp.delegate = guardDelegate
+                    print("       → installed LongPressGuard")
+                }
             }
         }
 
@@ -201,11 +239,13 @@ final class LongPressGuard: NSObject, UIGestureRecognizerDelegate {
     }
 
     nonisolated func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-        // Hop to MainActor for the property read; gate decision is made before
-        // the recognizer transitions to .began.
         MainActor.assumeIsolated {
             guard let view = self.view else { return true }
-            return view.getTerminal().mouseMode == .off
+            let mouseOn = view.getTerminal().mouseMode != .off
+            let allow = !mouseOn
+            let typeName = String(describing: type(of: gestureRecognizer))
+            print("[LongPressGuard] \(typeName) shouldBegin? mouseMode=\(view.getTerminal().mouseMode) → \(allow ? "allow" : "deny")")
+            return allow
         }
     }
 }
