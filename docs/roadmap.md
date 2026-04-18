@@ -1,6 +1,6 @@
 # Roadmap
 
-~8 weeks solo to App Store v1.0.
+~10 weeks solo to App Store v1.0 (M3.5 added port forwarding + in-app browser, +2wk).
 
 ## M0 — Foundation (1 wk)
 
@@ -56,6 +56,23 @@
 - Background opacity slider
 
 **Exit criteria:** all UX-design.md interactions implemented, themes look right, hardware keyboard feels first-class on iPad.
+
+## M3.5 — Port Forwarding & In-App Browser (2 wk)
+
+**Goal:** view services running inside the workspace (dev servers, internal UIs, Jupyter, etc.) from iPhone/iPad with a native dev-tuned browser.
+
+- `PortForwarding/` package: protocol + dual-mode (subdomain proxy preferred, loopback WebSocket bridge fallback) — see [ADR-0010](adr/0010-port-forwarding.md)
+- `LoopbackBridge/` package: `Network.framework` `NWListener` + WebSocket-to-TCP pump
+- `BrowserKit/` package: `WKWebView` wrapper, address bar, port picker, JSON/HTML reader-mode
+- `BrowserFeature/` package: TCA reducer for the browser tab
+- Port discovery via `GET /api/v2/workspaceagents/{id}/listening-ports`, polled while workspace detail is visible
+- DevTools-lite panel: request log, console messages, response headers, cookies
+- Cookie/session auth injection for subdomain mode
+- iPad split-view: terminal | browser side-by-side
+- Tab switcher integrates browser tabs alongside terminal tabs
+- Hot-reload tolerance — transparent reconnect on tunnel hiccup
+
+**Exit criteria:** can tap a discovered port on a real workspace and load its UI in the in-app browser; both subdomain and loopback modes verified end-to-end; DevTools-lite shows requests; iPad split-view works.
 
 ## M4 — Quality (1 wk)
 

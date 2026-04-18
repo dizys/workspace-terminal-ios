@@ -16,12 +16,13 @@ A **native iOS/iPadOS app** that makes Coder workspaces feel as good on a phone 
 
 ## Pillars
 
-1. **Native-first.** SwiftUI + UIKit interop where it matters. No web views in the hot path.
+1. **Native-first.** SwiftUI + UIKit interop where it matters. No web views in the hot path. (The in-app dev browser at M3.5 is a deliberate exception, scoped to forwarded workspace ports.)
 2. **Terminal correctness.** Full xterm-256, true color, Unicode 15, Powerline glyphs, emoji, box-drawing, sixel — not the degraded subset the web terminal renders.
 3. **Touch ergonomics that fit a terminal.** Floating modifier bar, two-finger scrollback, pinch-zoom font, long-press selection with magnifier, sticky Ctrl/Alt.
-4. **One tap to a working shell.** Cold-start → connected PTY in under ~2s.
+4. **One tap to a working shell — and to a forwarded port.** Cold-start → connected PTY in under ~2s. One tap from the workspace detail screen to a running dev server in the in-app browser.
 5. **Self-hosted respect.** Arbitrary URLs, custom CAs, OIDC providers, no phone-home.
-6. **iPad as a real workstation.** Universal app, multi-window, hardware keyboard support, Stage Manager friendly.
+6. **iPad as a real workstation.** Universal app, multi-window, hardware keyboard support, Stage Manager friendly. Side-by-side terminal + browser is a first-class layout.
+7. **Port forwarding + dev browser.** Run dev servers, internal UIs, Jupyter, Storybook inside the workspace; view them from the iPhone/iPad with auto-discovered ports, hot-reload tolerance, and a DevTools-lite panel. See [ports-and-browser.md](ports-and-browser.md).
 
 ## Non-goals (v1)
 

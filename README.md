@@ -18,6 +18,7 @@ Coder's web terminal works in a pinch but is painful on iPhone/iPad: no Ctrl/Alt
 - Reconnecting PTY — survives network blips
 - OIDC, GitHub OAuth, password auth (whatever your deployment supports)
 - Devcontainer / docker-in-docker sub-agent support
+- **Port forwarding + native dev browser** — view dev servers, internal UIs, Jupyter, Storybook running inside your workspace, with auto-discovered ports, DevTools-lite, and side-by-side terminal+browser on iPad
 - Universal app: iPhone + iPad with multi-window, Stage Manager, hardware keyboard
 - Themes: Tokyo Night, Catppuccin, Solarized, Dracula, Gruvbox, custom JSON
 - Zero telemetry by default

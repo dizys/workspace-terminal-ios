@@ -31,6 +31,11 @@ Packages/
   StoreKitClient/         ← receipt validation, paid-tier gate
   DesignSystem/           ← themes, Nerd Font bundle, primitives, iPad layout helpers
   TestSupport/            ← fakes, fixtures, snapshot helpers
+  # added at M3.5 (port forwarding + in-app browser)
+  PortForwarding/         ← protocol + dual-mode (subdomain proxy / loopback bridge)
+  LoopbackBridge/         ← Network.framework NWListener + WS-to-TCP pump
+  BrowserKit/             ← WKWebView wrapper, address bar, port picker, reader-mode
+  BrowserFeature/         ← TCA reducer for the browser tab
 ```
 
 **Why split this finely:** each package builds and tests in isolation. `CoderAPI` and `PTYTransport` could ship as standalone reusable libraries (future macOS / visionOS clients). The App target is just composition — easy to reason about.
