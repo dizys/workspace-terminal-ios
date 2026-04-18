@@ -54,13 +54,14 @@ public struct WorkspaceDetailFeature {
             case .onAppear, .refresh:
                 state.isLoading = true
                 let id = state.workspaceID
+                let client = apiClient
                 return .run { send in
-                    guard let client = await apiClient() else {
+                    guard let api = await client() else {
                         await send(.workspaceLoaded(.failure(WorkspaceFailure(message: "Not signed in"))))
                         return
                     }
                     do {
-                        let ws = try await client.fetchWorkspace(id: id)
+                        let ws = try await api.fetchWorkspace(id: id)
                         await send(.workspaceLoaded(.success(ws)))
                     } catch {
                         await send(.workspaceLoaded(.failure(WorkspaceFailure(error))))
@@ -94,10 +95,11 @@ public struct WorkspaceDetailFeature {
                 state.pendingTransition = build.transition
                 state.buildLogs = []
                 let buildID = build.id
+                let client = apiClient
                 return .run { send in
-                    guard let client = await apiClient() else { return }
+                    guard let api = await client() else { return }
                     do {
-                        let stream = try await client.streamBuildLogs(buildID: buildID, follow: true)
+                        let stream = try await api.streamBuildLogs(buildID: buildID, follow: true)
                         for try await log in stream {
                             await send(.buildLogReceived(log))
                         }
@@ -131,13 +133,14 @@ public struct WorkspaceDetailFeature {
         state.pendingTransition = transition
         state.error = nil
         let id = workspace.id
+        let client = apiClient
         return .run { send in
-            guard let client = await apiClient() else {
+            guard let api = await client() else {
                 await send(.buildCreated(.failure(WorkspaceFailure(message: "Not signed in"))))
                 return
             }
             do {
-                let build = try await client.createBuild(workspaceID: id, transition: transition)
+                let build = try await api.createBuild(workspaceID: id, transition: transition)
                 await send(.buildCreated(.success(build)))
             } catch {
                 await send(.buildCreated(.failure(WorkspaceFailure(error))))

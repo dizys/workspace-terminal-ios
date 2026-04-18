@@ -35,13 +35,14 @@ public struct WorkspaceListFeature {
             switch action {
             case .onAppear, .refresh:
                 state.isLoading = true
+                let client = apiClient
                 return .run { send in
-                    guard let client = await apiClient() else {
+                    guard let api = await client() else {
                         await send(.loaded(.failure(WorkspaceFailure(message: "Not signed in"))))
                         return
                     }
                     do {
-                        let workspaces = try await client.listMyWorkspaces()
+                        let workspaces = try await api.listMyWorkspaces()
                         await send(.loaded(.success(workspaces)))
                     } catch {
                         await send(.loaded(.failure(WorkspaceFailure(error))))
