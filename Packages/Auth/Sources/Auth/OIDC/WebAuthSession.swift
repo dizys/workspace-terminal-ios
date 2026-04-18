@@ -19,10 +19,13 @@ import WebKit
 /// 3. When `/cli-auth` finishes rendering, a `WKUserScript` (injected at
 ///    document end) scrapes the session token from the DOM and posts it via
 ///    `window.webkit.messageHandlers.coderTokenBridge.postMessage(token)`.
+///    Only Coder's `id-secret` format is accepted.
 /// 4. We construct a synthetic `workspaceterminal://auth/callback?session_token=<token>`
-///    URL and resolve `OIDCFlow.AuthSession.start`'s continuation, so
-///    `OIDCFlow.extractToken` works unchanged.
-/// 5. If the user taps Cancel, we throw `.userCanceled`.
+///    URL and resolve `OIDCFlow.AuthSession.start`'s continuation.
+/// 5. **Fallback:** if scraping fails (DOM changed, token not visible), the
+///    user can tap "Paste token" in the navigation bar, copy the token via
+///    Coder's own "Copy session token" button, and paste it into a sheet.
+/// 6. If the user dismisses without resolving, we throw `.userCanceled`.
 public final class LiveWebAuthSession: NSObject, OIDCFlow.AuthSession, @unchecked Sendable {
     public let presentationAnchor: @MainActor () -> UIWindow
 
@@ -45,6 +48,22 @@ public final class LiveWebAuthSession: NSObject, OIDCFlow.AuthSession, @unchecke
                 presenter?.present(nav, animated: true)
             }
         }
+    }
+}
+
+/// A Coder session token has the shape `<id>-<secret>` where both halves
+/// are alphanumeric. Reject anything else — older versions of the scraper
+/// got fooled by random alphanumeric DOM nodes.
+///
+/// Public so the OIDCFlow layer + tests can share the same definition.
+public enum CoderTokenFormat {
+    /// Coder uses 10-char IDs and 22+ char secrets, but be lenient about
+    /// length to survive future tweaks. Single dash as separator.
+    public static let pattern = #"^[A-Za-z0-9]{8,40}-[A-Za-z0-9]{16,80}$"#
+
+    public static func isValid(_ value: String) -> Bool {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.range(of: pattern, options: .regularExpression) != nil
     }
 }
 
@@ -72,6 +91,12 @@ private final class WebAuthViewController: UIViewController, WKScriptMessageHand
             barButtonSystemItem: .cancel,
             target: self,
             action: #selector(cancelTapped)
+        )
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            title: "Paste token",
+            style: .plain,
+            target: self,
+            action: #selector(pasteTokenTapped)
         )
 
         let config = WKWebViewConfiguration()
@@ -101,8 +126,6 @@ private final class WebAuthViewController: UIViewController, WKScriptMessageHand
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
-        // If the sheet was dismissed without us resolving (user swiped down
-        // or tapped Cancel), surface .userCanceled.
         if !resolved {
             resolved = true
             continuation.resume(throwing: OIDCFlow.OIDCError.userCanceled)
@@ -113,6 +136,49 @@ private final class WebAuthViewController: UIViewController, WKScriptMessageHand
         dismiss(animated: true)
     }
 
+    @objc private func pasteTokenTapped() {
+        let alert = UIAlertController(
+            title: "Paste session token",
+            message: "On Coder's page, tap 'Copy session token', then paste it here.",
+            preferredStyle: .alert
+        )
+        alert.addTextField { tf in
+            tf.placeholder = "id-secret"
+            tf.autocapitalizationType = .none
+            tf.autocorrectionType = .no
+            tf.spellCheckingType = .no
+            tf.smartDashesType = .no
+            tf.smartQuotesType = .no
+            tf.font = .monospacedSystemFont(ofSize: 14, weight: .regular)
+            // Pre-fill with the clipboard if it looks like a Coder token.
+            if let clip = UIPasteboard.general.string, CoderTokenFormat.isValid(clip) {
+                tf.text = clip
+            }
+        }
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Sign in", style: .default) { [weak self, weak alert] _ in
+            guard let self, let alert,
+                  let raw = alert.textFields?.first?.text else { return }
+            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard CoderTokenFormat.isValid(trimmed) else {
+                self.showInvalidTokenAlert()
+                return
+            }
+            self.deliverToken(trimmed)
+        })
+        present(alert, animated: true)
+    }
+
+    private func showInvalidTokenAlert() {
+        let alert = UIAlertController(
+            title: "That doesn't look like a session token",
+            message: "Coder session tokens are formatted as 'id-secret'. Try copying the full string from the page.",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
+    }
+
     // MARK: - WKScriptMessageHandler
 
     nonisolated func userContentController(
@@ -121,23 +187,26 @@ private final class WebAuthViewController: UIViewController, WKScriptMessageHand
     ) {
         guard message.name == "coderTokenBridge",
               let token = message.body as? String,
-              !token.isEmpty else { return }
+              CoderTokenFormat.isValid(token) else { return }
         Task { @MainActor in
-            guard !resolved else { return }
-            resolved = true
-            // Synthesize the callback URL OIDCFlow expects.
-            var components = URLComponents()
-            components.scheme = Auth.callbackURLScheme
-            components.host = Auth.callbackHost
-            components.path = Auth.callbackPath
-            components.queryItems = [URLQueryItem(name: "session_token", value: token)]
-            if let url = components.url {
-                continuation.resume(returning: url)
-            } else {
-                continuation.resume(throwing: OIDCFlow.OIDCError.missingTokenInCallback)
-            }
-            dismiss(animated: true)
+            self.deliverToken(token)
         }
+    }
+
+    private func deliverToken(_ token: String) {
+        guard !resolved else { return }
+        resolved = true
+        var components = URLComponents()
+        components.scheme = Auth.callbackURLScheme
+        components.host = Auth.callbackHost
+        components.path = Auth.callbackPath
+        components.queryItems = [URLQueryItem(name: "session_token", value: token)]
+        if let url = components.url {
+            continuation.resume(returning: url)
+        } else {
+            continuation.resume(throwing: OIDCFlow.OIDCError.missingTokenInCallback)
+        }
+        dismiss(animated: true)
     }
 }
 
@@ -155,44 +224,45 @@ private extension UIViewController {
 
 /// JavaScript injected into every Coder page in the WKWebView.
 ///
-/// Tries a sequence of known selectors for the session token. The element is
-/// usually a readonly `<input>` rendered inside a `[data-testid="cli-auth-token"]`
-/// container, but the implementation is defensive — it also accepts any
-/// readonly input or token-shaped text inside a code-style element.
-///
-/// Polls for ~7s after document-end + watches DOM mutations, since the token
-/// may render only after React hydration finishes.
+/// Looks for a Coder session token (formatted `id-secret`). Tries known
+/// selectors first (data-testid, readonly inputs), then any DOM text node
+/// that matches the strict format. Polls + watches mutations to handle
+/// React hydration timing.
 private let scrapeScript = #"""
 (function() {
   if (window.__coderTokenScraperInstalled) return;
   window.__coderTokenScraperInstalled = true;
 
-  function tokenLooksValid(value) {
-    if (!value) return false;
-    var trimmed = ("" + value).trim();
-    if (trimmed.length < 20 || trimmed.length > 200) return false;
-    return /^[A-Za-z0-9_.\-]+$/.test(trimmed);
+  // Coder session tokens are exactly <id>-<secret>; reject anything else.
+  var TOKEN_REGEX = /\b([A-Za-z0-9]{8,40}-[A-Za-z0-9]{16,80})\b/;
+
+  function extractTokenFrom(text) {
+    if (!text) return null;
+    var s = ("" + text).trim();
+    var m = s.match(TOKEN_REGEX);
+    return m ? m[1] : null;
   }
 
   function findToken() {
-    var selectors = [
-      '[data-testid="cli-auth-token"] input',
-      'input[data-testid="cli-auth-token"]',
-      '[data-testid="cli-auth-token"]',
-      'input[readonly][type="text"]',
-      'input[readonly]',
-      'input[type="text"][value]'
-    ];
-    for (var i = 0; i < selectors.length; i++) {
-      var el = document.querySelector(selectors[i]);
-      if (!el) continue;
-      var v = (el.value || el.textContent || '').trim();
-      if (tokenLooksValid(v)) return v;
+    // Try inputs first (most reliable).
+    var inputs = document.querySelectorAll('input');
+    for (var i = 0; i < inputs.length; i++) {
+      var t = extractTokenFrom(inputs[i].value);
+      if (t) return t;
     }
-    var nodes = document.querySelectorAll('code, pre, span, div');
-    for (var j = 0; j < nodes.length; j++) {
-      var text = (nodes[j].textContent || '').trim();
-      if (tokenLooksValid(text)) return text;
+    // Then specific Coder containers.
+    var containers = document.querySelectorAll(
+      '[data-testid="cli-auth-token"], [class*="token" i], [class*="Token"]'
+    );
+    for (var j = 0; j < containers.length; j++) {
+      var t2 = extractTokenFrom(containers[j].textContent);
+      if (t2) return t2;
+    }
+    // Then any visible code/pre/span that looks like a token.
+    var nodes = document.querySelectorAll('code, pre, span, div, p');
+    for (var k = 0; k < nodes.length; k++) {
+      var t3 = extractTokenFrom(nodes[k].textContent);
+      if (t3) return t3;
     }
     return null;
   }
@@ -200,9 +270,7 @@ private let scrapeScript = #"""
   function tryPost() {
     var t = findToken();
     if (t) {
-      try {
-        window.webkit.messageHandlers.coderTokenBridge.postMessage(t);
-      } catch (e) {}
+      try { window.webkit.messageHandlers.coderTokenBridge.postMessage(t); } catch (e) {}
       return true;
     }
     return false;
@@ -213,7 +281,7 @@ private let scrapeScript = #"""
   var attempts = 0;
   var interval = setInterval(function() {
     attempts++;
-    if (tryPost() || attempts > 30) clearInterval(interval);
+    if (tryPost() || attempts > 40) clearInterval(interval);
   }, 250);
 
   var observer = new MutationObserver(function() {
