@@ -82,29 +82,39 @@ public struct TerminalFeature {
                 let tokens = tokenProvider
 
                 return .run { send in
-                    // Build a transport scoped to this tab's reconnect token.
-                    let config = PTYTransportConfig(
-                        agentID: agent.id,
-                        reconnectToken: id,
-                        initialSize: size
-                    )
-                    let transport = factory(
-                        deployment: deployment,
-                        tls: .default,
-                        config: config,
-                        tokenProvider: { await tokens() }
-                    )
-                    let session = TerminalSession(id: id, agent: agent, transport: transport)
-                    await store.attach(id: id, session: session)
+                    // Idempotent: SwiftUI may re-mount off-screen tabs and
+                    // refire .task → .onAppear. If a session already exists
+                    // for this sessionID, re-subscribe to its state stream
+                    // instead of creating a new transport (which would
+                    // replace + deinit the old session, breaking subscribers).
+                    let session: TerminalSession
+                    if let existing = await store.session(for: id) {
+                        session = existing
+                    } else {
+                        let config = PTYTransportConfig(
+                            agentID: agent.id,
+                            reconnectToken: id,
+                            initialSize: size
+                        )
+                        let transport = factory(
+                            deployment: deployment,
+                            tls: .default,
+                            config: config,
+                            tokenProvider: { await tokens() }
+                        )
+                        let new = TerminalSession(id: id, agent: agent, transport: transport)
+                        await store.attach(id: id, session: new)
+                        do {
+                            try await new.connect()
+                        } catch {
+                            await send(.errorRaised("connect failed: \(error)"))
+                            return
+                        }
+                        session = new
+                    }
 
                     // Pump the session's connection-state stream into actions.
                     // Bytes deliberately NOT pumped here — see header comment.
-                    do {
-                        try await session.connect()
-                    } catch {
-                        await send(.errorRaised("connect failed: \(error)"))
-                        return
-                    }
                     for await s in session.state {
                         await send(.stateChanged(s))
                     }
@@ -112,17 +122,13 @@ public struct TerminalFeature {
                 .cancellable(id: CancelID.statePump(id), cancelInFlight: true)
 
             case .onDisappear:
-                let id = state.sessionID
-                let store = sessionStore
-                return .merge(
-                    .cancel(id: CancelID.statePump(id)),
-                    .run { _ in
-                        if let session = await store.session(for: id) {
-                            await session.close(.userInitiated)
-                        }
-                        await store.detach(id: id)
-                    }
-                )
+                // SwiftUI's TabView unmounts off-screen tabs; firing close
+                // here would tear down the session and re-mounting would
+                // start a fresh one (blank). Just cancel the state-pump
+                // effect; the session itself stays in the store and gets
+                // torn down explicitly via .closeTabTapped on the parent
+                // feature, or on full feature dismissal.
+                return .cancel(id: CancelID.statePump(state.sessionID))
 
             case .userInputSent:
                 return .none

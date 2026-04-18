@@ -36,6 +36,8 @@ public struct TerminalSessionsFeature {
         case tabs(IdentifiedActionOf<TerminalFeature>)
     }
 
+    @Dependency(\.terminalSessionStore) var sessionStore
+
     public init() {}
 
     public var body: some ReducerOf<Self> {
@@ -69,7 +71,15 @@ public struct TerminalSessionsFeature {
                             ?? state.tabs.first?.sessionID
                     }
                 }
-                return .none
+                // Tear down the underlying TerminalSession (closes its
+                // PTY transport) — explicit user intent to close the tab.
+                let store = sessionStore
+                return .run { _ in
+                    if let session = await store.session(for: id) {
+                        await session.close(.userInitiated)
+                    }
+                    await store.detach(id: id)
+                }
 
             case let .selectTab(id):
                 state.selectedID = id
