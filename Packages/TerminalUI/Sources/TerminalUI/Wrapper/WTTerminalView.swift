@@ -49,6 +49,17 @@ public struct WTTerminalView: UIViewRepresentable {
         // this to true, but we set it explicitly so future SwiftTerm releases
         // can't silently flip the default.
         view.allowMouseReporting = true
+
+        // 1) Suppress SwiftTerm's iOS long-press → context-menu when the host
+        //    has mouse mode on. Otherwise a slow tap/drag in tmux pops the
+        //    iOS Cut/Copy/Paste menu and (on iOS 16+) can auto-paste clipboard
+        //    contents into the terminal.
+        context.coordinator.installLongPressGuard(on: view)
+
+        // 2) Two-finger pan → xterm mouse-wheel events. Lets tmux's
+        //    "scroll wheel enters copy-mode" binding work on iPhone.
+        context.coordinator.installTwoFingerWheelPan(on: view)
+
         context.coordinator.attach(view: view, inbound: inbound())
         return view
     }
@@ -112,6 +123,89 @@ public struct WTTerminalView: UIViewRepresentable {
         }
         fileprivate func forwardResize(rows: Int, cols: Int) {
             onResize(rows, cols)
+        }
+
+        // MARK: - Gesture customizations
+
+        private var longPressGuard: LongPressGuard?
+        private var wheelPanRecognizer: UIPanGestureRecognizer?
+        private var wheelPanLastY: CGFloat = 0
+
+        /// Add a UIGestureRecognizerDelegate to SwiftTerm's UILongPressGestureRecognizer
+        /// that suppresses it whenever the remote terminal has mouse mode on.
+        func installLongPressGuard(on view: TerminalView) {
+            for recognizer in view.gestureRecognizers ?? [] {
+                guard let lp = recognizer as? UILongPressGestureRecognizer else { continue }
+                let guardDelegate = LongPressGuard(view: view)
+                lp.delegate = guardDelegate
+                self.longPressGuard = guardDelegate
+                return
+            }
+        }
+
+        /// Install a 2-finger pan recognizer that converts vertical drag into
+        /// xterm mouse-wheel events when mouse mode is on.
+        func installTwoFingerWheelPan(on view: TerminalView) {
+            let pan = UIPanGestureRecognizer(target: self, action: #selector(handleWheelPan(_:)))
+            pan.minimumNumberOfTouches = 2
+            pan.maximumNumberOfTouches = 2
+            view.addGestureRecognizer(pan)
+            wheelPanRecognizer = pan
+        }
+
+        @objc private func handleWheelPan(_ recognizer: UIPanGestureRecognizer) {
+            guard let view = self.view else { return }
+            let terminal = view.getTerminal()
+            // Only forward as wheel events when host has mouse mode on; otherwise
+            // let SwiftTerm's UIScrollView handle it as native scroll.
+            guard terminal.mouseMode != .off else { return }
+
+            switch recognizer.state {
+            case .began:
+                wheelPanLastY = recognizer.translation(in: view).y
+            case .changed:
+                let now = recognizer.translation(in: view).y
+                let delta = now - wheelPanLastY
+                let cellHeight = max(view.bounds.height / CGFloat(max(terminal.rows, 1)), 1)
+                let lines = Int(delta / cellHeight)
+                if lines == 0 { return }
+                wheelPanLastY = now
+
+                // SGR mouse-wheel: button 64 = wheel up, 65 = wheel down.
+                // We pass through the terminal's own sendEvent so encoding
+                // matches the active mouseProtocol (sgr / urxvt / utf8).
+                let wheelButton = lines > 0 ? 64 : 65
+                let count = abs(lines)
+                let cols = max(terminal.cols, 1)
+                let mid = cols / 2
+                for _ in 0..<count {
+                    terminal.sendEvent(buttonFlags: wheelButton, x: mid, y: 0)
+                }
+            default:
+                break
+            }
+        }
+    }
+}
+
+/// UIGestureRecognizerDelegate that prevents SwiftTerm's long-press
+/// (Cut/Copy/Paste menu) from firing while the host has mouse mode on.
+/// Without this, a deliberate one-finger drag in tmux pops the iOS context
+/// menu and can auto-paste the clipboard.
+@MainActor
+final class LongPressGuard: NSObject, UIGestureRecognizerDelegate {
+    private weak var view: TerminalView?
+
+    init(view: TerminalView) {
+        self.view = view
+    }
+
+    nonisolated func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        // Hop to MainActor for the property read; gate decision is made before
+        // the recognizer transitions to .began.
+        MainActor.assumeIsolated {
+            guard let view = self.view else { return true }
+            return view.getTerminal().mouseMode == .off
         }
     }
 }
