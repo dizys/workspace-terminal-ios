@@ -130,17 +130,10 @@ private struct TabsPopover: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            Divider().background(WTColor.border)
+            Divider()
             tabList
-            Divider().background(WTColor.border)
+            Divider()
             newTabRow
-        }
-        .background {
-            if #available(iOS 26, *) {
-                Color.clear.glassEffect()
-            } else {
-                Rectangle().fill(.ultraThinMaterial)
-            }
         }
     }
 
