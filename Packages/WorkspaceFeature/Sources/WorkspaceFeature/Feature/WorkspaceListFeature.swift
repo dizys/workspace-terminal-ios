@@ -27,6 +27,7 @@ public struct WorkspaceListFeature {
 
     @Dependency(\.authenticatedAPIClient) var apiClient
     @Dependency(\.continuousClock) var clock
+    @Dependency(\.date.now) var now
 
     public init() {}
 
@@ -52,7 +53,7 @@ public struct WorkspaceListFeature {
             case let .loaded(.success(workspaces)):
                 state.workspaces = workspaces.sorted(by: { $0.name < $1.name })
                 state.isLoading = false
-                state.lastFetchedAt = Date()
+                state.lastFetchedAt = now
                 return .none
 
             case let .loaded(.failure(failure)):

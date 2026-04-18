@@ -13,18 +13,20 @@ struct WorkspaceListFeatureTests {
             makeWorkspace(name: "zzz"),
             makeWorkspace(name: "aaa"),
         ]
+        let pinnedNow = Date(timeIntervalSince1970: 1_700_000_000)
         let store = TestStore(initialState: WorkspaceListFeature.State()) {
             WorkspaceListFeature()
         } withDependencies: {
             $0.authenticatedAPIClient = .init(make: {
                 FakeClient(workspaces: unsortedFixture)
             })
+            $0.date = .constant(pinnedNow)
         }
         await store.send(.onAppear) { $0.isLoading = true }
         await store.receive(.loaded(.success(unsortedFixture))) {
             $0.isLoading = false
             $0.workspaces = unsortedFixture.sorted(by: { $0.name < $1.name })
-            $0.lastFetchedAt = $0.lastFetchedAt
+            $0.lastFetchedAt = pinnedNow
         }
     }
 
