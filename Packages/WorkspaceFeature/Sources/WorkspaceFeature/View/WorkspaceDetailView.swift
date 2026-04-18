@@ -12,67 +12,33 @@ public struct WorkspaceDetailView: View {
     }
 
     public var body: some View {
-        List {
-            if let workspace = store.workspace {
-                Section("Overview") {
-                    LabeledContent("Status") { StatusPill(status: workspace.latestBuild.status) }
-                    LabeledContent("Template", value: workspace.templateDisplayName ?? workspace.templateName)
-                    LabeledContent("Owner", value: workspace.ownerName)
-                    if let lastUsed = workspace.lastUsedAt {
-                        LabeledContent("Last used", value: lastUsed, format: .relative(presentation: .named))
-                    }
-                }
-
-                Section("Lifecycle") {
-                    Button("Start", systemImage: "play.fill") { store.send(.startTapped) }
-                        .disabled(!workspace.canStart || store.pendingTransition != nil)
-                    Button("Stop", systemImage: "stop.fill") { store.send(.stopTapped) }
-                        .disabled(!workspace.canStop || store.pendingTransition != nil)
-                    Button("Restart", systemImage: "arrow.clockwise") { store.send(.restartTapped) }
-                        .disabled(!workspace.canRestart || store.pendingTransition != nil)
-                }
-
-                if !store.agents.isEmpty {
-                    Section("Agents") {
-                        ForEach(store.agents) { agent in
-                            HStack {
-                                AgentStatusDot(status: agent.status)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(agent.name).font(.body)
-                                    Text("\(agent.operatingSystem ?? "?") · \(agent.architecture ?? "?")")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                if agent.isDevcontainer {
-                                    Text("devcontainer").font(.caption2).foregroundStyle(.secondary)
-                                }
-                            }
+        ZStack {
+            WTColor.background.ignoresSafeArea()
+            ScrollView {
+                if let workspace = store.workspace {
+                    VStack(spacing: WTSpace.lg) {
+                        HeroCard(workspace: workspace, pendingTransition: store.pendingTransition)
+                        LifecycleCard(workspace: workspace, store: store)
+                        if !store.agents.isEmpty {
+                            AgentsCard(agents: store.agents)
                         }
-                    }
-                }
-
-                if !store.buildLogs.isEmpty {
-                    Section("Build log") {
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 2) {
-                                ForEach(store.buildLogs) { log in
-                                    Text(log.output)
-                                        .font(.system(.caption, design: .monospaced))
-                                        .foregroundStyle(color(for: log.logLevel))
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                }
-                            }
+                        if !store.buildLogs.isEmpty {
+                            BuildLogCard(logs: store.buildLogs)
                         }
-                        .frame(maxHeight: 240)
+                        Spacer(minLength: WTSpace.xxxl)
                     }
+                    .padding(.horizontal, WTSpace.lg)
+                    .padding(.top, WTSpace.sm)
+                } else if store.isLoading {
+                    WTCinematicLoader(label: "Loading workspace…")
+                        .frame(minHeight: 320)
                 }
-            } else if store.isLoading {
-                ProgressView().frame(maxWidth: .infinity)
             }
         }
         .navigationTitle(store.workspace?.name ?? "Workspace")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(WTColor.background, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .refreshable { store.send(.refresh) }
         .task { store.send(.onAppear) }
         .alert("Something went wrong",
@@ -82,49 +48,296 @@ public struct WorkspaceDetailView: View {
             Text(store.error ?? "")
         }
     }
+}
+
+// MARK: - Hero
+
+private struct HeroCard: View {
+    let workspace: Workspace
+    let pendingTransition: WorkspaceBuild.Transition?
+
+    var body: some View {
+        WTHeroCard {
+            VStack(alignment: .leading, spacing: WTSpace.lg) {
+                HStack(spacing: WTSpace.md) {
+                    TemplateBigBadge(workspace: workspace)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(workspace.name)
+                            .font(WTFont.title)
+                            .foregroundStyle(WTColor.textPrimary)
+                        Text(workspace.templateDisplayName ?? workspace.templateName)
+                            .font(WTFont.subheadline)
+                            .foregroundStyle(WTColor.textSecondary)
+                    }
+                    Spacer()
+                }
+
+                HStack(spacing: WTSpace.sm) {
+                    WTStatusPill(label: statusLabel, tone: statusTone)
+                    if let lastUsed = workspace.lastUsedAt {
+                        Text("· \(relative(lastUsed))")
+                            .font(WTFont.caption)
+                            .foregroundStyle(WTColor.textTertiary)
+                    }
+                    Spacer()
+                }
+            }
+        }
+    }
+
+    private var statusLabel: String {
+        if let pendingTransition {
+            switch pendingTransition {
+            case .start:  return "Starting…"
+            case .stop:   return "Stopping…"
+            case .delete: return "Deleting…"
+            }
+        }
+        return workspace.latestBuild.status.rawValue.capitalized
+    }
+
+    private var statusTone: WTStatusPill.Tone {
+        if pendingTransition != nil { return .pending }
+        switch workspace.latestBuild.status {
+        case .running:                          return .running
+        case .starting, .pending:               return .pending
+        case .stopped:                          return .stopped
+        case .stopping, .deleting, .canceling:  return .pending
+        case .failed:                           return .error
+        case .deleted, .canceled:               return .neutral
+        }
+    }
+
+    private func relative(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return "Last used " + formatter.localizedString(for: date, relativeTo: Date())
+    }
+}
+
+private struct TemplateBigBadge: View {
+    let workspace: Workspace
+    var body: some View {
+        let initial = String((workspace.templateDisplayName ?? workspace.templateName).prefix(1)).uppercased()
+        ZStack {
+            RoundedRectangle(cornerRadius: WTRadius.lg, style: .continuous)
+                .fill(WTColor.accentSoft)
+                .frame(width: 56, height: 56)
+            Text(initial)
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .foregroundStyle(WTColor.accent)
+        }
+    }
+}
+
+// MARK: - Lifecycle
+
+private struct LifecycleCard: View {
+    let workspace: Workspace
+    let store: StoreOf<WorkspaceDetailFeature>
+
+    var body: some View {
+        WTCard {
+            VStack(alignment: .leading, spacing: WTSpace.md) {
+                Text("Lifecycle")
+                    .font(WTFont.captionEmphasized)
+                    .foregroundStyle(WTColor.textTertiary)
+                    .textCase(.uppercase)
+                    .tracking(0.5)
+
+                HStack(spacing: WTSpace.sm) {
+                    LifecycleButton(
+                        title: "Start",
+                        icon: "play.fill",
+                        tone: .accent,
+                        enabled: workspace.canStart && store.pendingTransition == nil
+                    ) { store.send(.startTapped) }
+
+                    LifecycleButton(
+                        title: "Stop",
+                        icon: "stop.fill",
+                        tone: .destructive,
+                        enabled: workspace.canStop && store.pendingTransition == nil
+                    ) { store.send(.stopTapped) }
+
+                    LifecycleButton(
+                        title: "Restart",
+                        icon: "arrow.clockwise",
+                        tone: .neutral,
+                        enabled: workspace.canRestart && store.pendingTransition == nil
+                    ) { store.send(.restartTapped) }
+                }
+            }
+        }
+    }
+}
+
+private struct LifecycleButton: View {
+    enum Tone { case accent, destructive, neutral }
+    let title: String
+    let icon: String
+    let tone: Tone
+    let enabled: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: WTSpace.xs + 2) {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .semibold))
+                Text(title)
+                    .font(WTFont.captionEmphasized)
+            }
+            .frame(maxWidth: .infinity, minHeight: 60)
+            .foregroundStyle(foreground)
+            .background(
+                RoundedRectangle(cornerRadius: WTRadius.md, style: .continuous)
+                    .fill(background)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: WTRadius.md, style: .continuous)
+                    .strokeBorder(border, lineWidth: WTStroke.hairline)
+            )
+            .opacity(enabled ? 1 : 0.4)
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+    }
+
+    private var foreground: Color {
+        switch tone {
+        case .accent:      return WTColor.accent
+        case .destructive: return WTColor.statusError
+        case .neutral:     return WTColor.textPrimary
+        }
+    }
+    private var background: Color {
+        switch tone {
+        case .accent:      return WTColor.accentSoft
+        case .destructive: return WTColor.statusError.opacity(0.12)
+        case .neutral:     return WTColor.surface
+        }
+    }
+    private var border: Color {
+        switch tone {
+        case .accent:      return WTColor.accent.opacity(0.35)
+        case .destructive: return WTColor.statusError.opacity(0.3)
+        case .neutral:     return WTColor.border
+        }
+    }
+}
+
+// MARK: - Agents
+
+private struct AgentsCard: View {
+    let agents: [WorkspaceAgent]
+
+    var body: some View {
+        WTCard {
+            VStack(alignment: .leading, spacing: WTSpace.md) {
+                Text("Agents")
+                    .font(WTFont.captionEmphasized)
+                    .foregroundStyle(WTColor.textTertiary)
+                    .textCase(.uppercase)
+                    .tracking(0.5)
+
+                VStack(spacing: WTSpace.sm) {
+                    ForEach(agents) { agent in
+                        HStack(spacing: WTSpace.md) {
+                            WTStatusDot(tone: tone(for: agent.status))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(agent.name)
+                                    .font(WTFont.bodyEmphasized)
+                                    .foregroundStyle(WTColor.textPrimary)
+                                Text("\(agent.operatingSystem ?? "?") · \(agent.architecture ?? "?")")
+                                    .font(WTFont.caption)
+                                    .foregroundStyle(WTColor.textSecondary)
+                            }
+                            Spacer()
+                            if agent.isDevcontainer {
+                                Text("devcontainer")
+                                    .font(WTFont.caption)
+                                    .foregroundStyle(WTColor.accent)
+                                    .padding(.horizontal, WTSpace.sm)
+                                    .padding(.vertical, 2)
+                                    .background(
+                                        Capsule(style: .continuous)
+                                            .fill(WTColor.accentSoft)
+                                    )
+                            }
+                        }
+                        .padding(.vertical, WTSpace.xs)
+                    }
+                }
+            }
+        }
+    }
+
+    private func tone(for status: WorkspaceAgent.Status) -> WTStatusPill.Tone {
+        switch status {
+        case .connected:                return .running
+        case .connecting:               return .pending
+        case .disconnected, .timeout:   return .error
+        case .unknown:                  return .neutral
+        }
+    }
+}
+
+// MARK: - Build log
+
+private struct BuildLogCard: View {
+    let logs: [BuildLog]
+
+    var body: some View {
+        WTCard(padding: 0) {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Text("Build log")
+                        .font(WTFont.captionEmphasized)
+                        .foregroundStyle(WTColor.textTertiary)
+                        .textCase(.uppercase)
+                        .tracking(0.5)
+                    Spacer()
+                    WTStatusDot(tone: .pending)
+                }
+                .padding(WTSpace.lg)
+
+                Divider().background(WTColor.border)
+
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 2) {
+                        ForEach(logs) { log in
+                            HStack(alignment: .top, spacing: WTSpace.sm) {
+                                Text(stage(log.stage))
+                                    .font(WTFont.monoSmall)
+                                    .foregroundStyle(WTColor.textTertiary)
+                                    .frame(width: 80, alignment: .leading)
+                                Text(log.output)
+                                    .font(WTFont.monoSmall)
+                                    .foregroundStyle(color(for: log.logLevel))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+                    }
+                    .padding(WTSpace.lg)
+                }
+                .frame(maxHeight: 280)
+                .background(WTColor.background.opacity(0.5))
+            }
+        }
+    }
+
+    private func stage(_ s: String) -> String {
+        s.isEmpty ? "·" : s
+    }
 
     private func color(for level: BuildLog.Level) -> Color {
         switch level {
-        case .error: return .red
-        case .warn:  return .orange
-        case .info, .debug, .trace, .unknown: return .primary
-        }
-    }
-}
-
-struct StatusPill: View {
-    let status: WorkspaceBuild.Status
-    var body: some View {
-        Text(status.rawValue.capitalized)
-            .font(.caption)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(color.opacity(0.15), in: Capsule())
-            .foregroundStyle(color)
-    }
-    private var color: Color {
-        switch status {
-        case .running: return .green
-        case .starting, .pending: return .blue
-        case .stopped: return .gray
-        case .stopping, .deleting, .canceling: return .orange
-        case .failed: return .red
-        case .deleted, .canceled: return .secondary
-        }
-    }
-}
-
-struct AgentStatusDot: View {
-    let status: WorkspaceAgent.Status
-    var body: some View {
-        Circle().fill(color).frame(width: 8, height: 8)
-    }
-    private var color: Color {
-        switch status {
-        case .connected: return .green
-        case .connecting: return .blue
-        case .disconnected, .timeout: return .red
-        case .unknown: return .gray
+        case .error: return WTColor.statusError
+        case .warn:  return WTColor.statusWarning
+        case .info:  return WTColor.textPrimary
+        case .debug, .trace: return WTColor.textSecondary
+        case .unknown: return WTColor.textPrimary
         }
     }
 }

@@ -2,6 +2,7 @@
 import Auth
 import CoderAPI
 import ComposableArchitecture
+import DesignSystem
 import SwiftUI
 
 public struct LoginView: View {
@@ -12,24 +13,40 @@ public struct LoginView: View {
     }
 
     public var body: some View {
-        VStack(spacing: 0) {
-            switch store.phase {
-            case .enteringURL:
-                URLEntryStep(store: store)
-            case .probingMethods:
-                ProgressStep(label: "Connecting…")
-            case .choosingMethod:
-                MethodPickerStep(store: store)
-            case .enteringPassword:
-                PasswordEntryStep(store: store)
-            case .openingOIDC:
-                ProgressStep(label: "Opening sign-in…")
-            case .finalizing:
-                ProgressStep(label: "Signing in…")
+        ZStack {
+            WTColor.background.ignoresSafeArea()
+            ScrollView {
+                VStack(spacing: WTSpace.xxl) {
+                    HeroHeader()
+
+                    Group {
+                        switch store.phase {
+                        case .enteringURL:
+                            URLEntryStep(store: store)
+                        case .probingMethods:
+                            ProgressStep(label: "Probing deployment…")
+                        case .choosingMethod:
+                            MethodPickerStep(store: store)
+                        case .enteringPassword:
+                            PasswordEntryStep(store: store)
+                        case .openingOIDC:
+                            ProgressStep(label: "Opening sign-in…")
+                        case .finalizing:
+                            ProgressStep(label: "Signing in…")
+                        }
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+
+                    Spacer(minLength: WTSpace.xxxl)
+                }
+                .padding(.horizontal, WTSpace.xl)
+                .padding(.top, WTSpace.xxl)
+                .frame(maxWidth: .infinity)
             }
+            .scrollDismissesKeyboard(.interactively)
         }
-        .navigationTitle("Sign in to Coder")
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarHidden(true)
+        .animation(WTMotion.smooth, value: store.phase)
         .alert("Sign-in error",
                isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.send(.dismissError) } })) {
             Button("OK", role: .cancel) { store.send(.dismissError) }
@@ -39,27 +56,64 @@ public struct LoginView: View {
     }
 }
 
+// MARK: - Hero
+
+private struct HeroHeader: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: WTSpace.md) {
+            HStack(alignment: .firstTextBaseline, spacing: WTSpace.sm) {
+                Image(systemName: "terminal.fill")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(WTColor.accent)
+                Text("Workspace Terminal")
+                    .font(WTFont.captionEmphasized)
+                    .foregroundStyle(WTColor.textSecondary)
+                    .textCase(.uppercase)
+                    .tracking(1.5)
+                Spacer()
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: WTSpace.xs) {
+                Text("Sign in")
+                    .font(WTFont.display)
+                    .foregroundStyle(WTColor.textPrimary)
+                WTAnimatedCursor(height: 36)
+                    .padding(.bottom, 4)
+                Spacer()
+            }
+
+            Text("Connect to your Coder deployment to access workspaces and terminals.")
+                .font(WTFont.body)
+                .foregroundStyle(WTColor.textSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// MARK: - Steps
+
 private struct URLEntryStep: View {
     @Bindable var store: StoreOf<AuthFeature>
 
     var body: some View {
-        Form {
-            Section {
-                TextField("https://coder.example.com", text: $store.urlInput.sending(\.urlInputChanged))
-                    .keyboardType(.URL)
-                    .textContentType(.URL)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-            } header: {
-                Text("Coder deployment URL")
-            } footer: {
-                Text("Enter the URL of your Coder dashboard. Self-hosted deployments are supported.")
-            }
+        VStack(spacing: WTSpace.lg) {
+            WTInputField(
+                label: "Coder deployment",
+                placeholder: "https://coder.example.com",
+                icon: "globe",
+                text: $store.urlInput.sending(\.urlInputChanged)
+            )
 
-            Section {
-                Button("Continue") { store.send(.continueWithURLTapped) }
-                    .disabled(store.urlInput.trimmingCharacters(in: .whitespaces).isEmpty)
-            }
+            WTPrimaryButton("Continue", icon: "arrow.right", action: { store.send(.continueWithURLTapped) })
+                .opacity(store.urlInput.trimmingCharacters(in: .whitespaces).isEmpty ? 0.4 : 1)
+                .disabled(store.urlInput.trimmingCharacters(in: .whitespaces).isEmpty)
+
+            Text("Self-hosted deployments are supported. Your URL never leaves your device.")
+                .font(WTFont.subheadline)
+                .foregroundStyle(WTColor.textTertiary)
+                .multilineTextAlignment(.center)
+                .padding(.top, WTSpace.sm)
+                .padding(.horizontal, WTSpace.lg)
         }
     }
 }
@@ -68,30 +122,26 @@ private struct MethodPickerStep: View {
     @Bindable var store: StoreOf<AuthFeature>
 
     var body: some View {
-        Form {
-            Section("How would you like to sign in?") {
-                ForEach(Array(store.availableMethods.enumerated()), id: \.offset) { _, method in
-                    Button { store.send(.methodTapped(method)) } label: {
-                        Label(label(for: method), systemImage: icon(for: method))
-                    }
+        VStack(spacing: WTSpace.md) {
+            HStack {
+                Text("How would you like to sign in?")
+                    .font(WTFont.headline)
+                    .foregroundStyle(WTColor.textPrimary)
+                Spacer()
+            }
+            ForEach(Array(store.availableMethods.enumerated()), id: \.offset) { _, method in
+                WTOAuthButton(variant: variant(for: method)) {
+                    store.send(.methodTapped(method))
                 }
             }
         }
     }
 
-    private func label(for method: AuthMethod) -> String {
+    private func variant(for method: AuthMethod) -> WTOAuthButton.Variant {
         switch method {
-        case .password: return "Email & password"
-        case .github:   return "Continue with GitHub"
-        case let .oidc(text, _): return text
-        }
-    }
-
-    private func icon(for method: AuthMethod) -> String {
-        switch method {
-        case .password: return "envelope"
-        case .github:   return "person.crop.square.filled.and.at.rectangle"
-        case .oidc:     return "key.horizontal"
+        case .password:                  return .password
+        case .github:                    return .github
+        case let .oidc(text, iconURL):   return .oidc(displayText: text, iconURL: iconURL)
         }
     }
 }
@@ -100,34 +150,38 @@ private struct PasswordEntryStep: View {
     @Bindable var store: StoreOf<AuthFeature>
 
     var body: some View {
-        Form {
-            Section("Email & password") {
-                TextField("Email", text: $store.emailInput.sending(\.emailInputChanged))
-                    .keyboardType(.emailAddress)
-                    .textContentType(.username)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                SecureField("Password", text: $store.passwordInput.sending(\.passwordInputChanged))
-                    .textContentType(.password)
-            }
-
-            Section {
-                Button("Sign in") { store.send(.submitPasswordTapped) }
-                    .disabled(store.emailInput.isEmpty || store.passwordInput.isEmpty)
-            }
+        VStack(spacing: WTSpace.lg) {
+            WTInputField(
+                label: "Email",
+                placeholder: "you@example.com",
+                icon: "envelope",
+                text: $store.emailInput.sending(\.emailInputChanged)
+            )
+            WTInputField(
+                label: "Password",
+                placeholder: "••••••••",
+                icon: "lock",
+                isSecure: true,
+                text: $store.passwordInput.sending(\.passwordInputChanged)
+            )
+            WTPrimaryButton("Sign in", icon: "arrow.right", action: { store.send(.submitPasswordTapped) })
+                .opacity(canSubmit ? 1 : 0.4)
+                .disabled(!canSubmit)
         }
+    }
+
+    private var canSubmit: Bool {
+        !store.emailInput.isEmpty && !store.passwordInput.isEmpty
     }
 }
 
 private struct ProgressStep: View {
     let label: String
-
     var body: some View {
-        VStack(spacing: 16) {
-            ProgressView()
-            Text(label).foregroundStyle(.secondary)
+        VStack(spacing: WTSpace.md) {
+            WTCinematicLoader(label: label)
+                .frame(height: 220)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 #endif
