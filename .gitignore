@@ -92,3 +92,6 @@ skills-lock.json
 coverage/
 *.coverage
 *.lcov
+
+# Vendored read-only reference checkouts (Coder Go source for protocol grounding)
+.refs/

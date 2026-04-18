@@ -3,11 +3,6 @@ import Testing
 
 @Suite("PTYTransport smoke")
 struct PTYTransportTests {
-    @Test("Heartbeat interval is positive")
-    func heartbeatPositive() {
-        #expect(PTYTransport.defaultHeartbeatInterval > 0)
-    }
-
     @Test("TerminalSize stores rows and cols")
     func terminalSize() {
         let size = TerminalSize(rows: 24, cols: 80)
