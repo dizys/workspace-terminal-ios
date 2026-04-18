@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "TestSupport",
-    platforms: [.iOS(.v17)],
+    platforms: [.iOS(.v17), .macOS(.v14)],
     products: [
         .library(name: "TestSupport", targets: ["TestSupport"]),
     ],
