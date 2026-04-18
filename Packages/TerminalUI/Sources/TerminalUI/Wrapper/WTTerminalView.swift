@@ -243,9 +243,10 @@ public struct WTTerminalView: UIViewRepresentable {
                 // so leftover sub-cell movement carries into next tick.
                 wheelPanLastY += CGFloat(lines) * cellHeight
 
-                // Drag DOWN (positive translation) = scroll content DOWN =
-                //   tmux wheel-DOWN (button 65). And vice versa.
-                let wheelButton = lines > 0 ? 65 : 64
+                // iOS natural-scrolling convention: drag DOWN with fingers =
+                // reveal content from ABOVE = wheel-UP (button 64).
+                // Drag UP with fingers = reveal content from BELOW = wheel-DOWN (65).
+                let wheelButton = lines > 0 ? 64 : 65
                 let count = abs(lines)
 
                 // Use the actual gesture location so the event lands inside
