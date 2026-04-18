@@ -35,9 +35,9 @@ public struct SignedInRootView: View {
                             store.send(.openTerminal(agent))
                         }
                         .navigationDestination(
-                            item: $store.scope(state: \.terminal, action: \.terminal)
-                        ) { terminalStore in
-                            TerminalSessionView(store: terminalStore)
+                            item: $store.scope(state: \.terminals, action: \.terminals)
+                        ) { terminalsStore in
+                            TerminalSessionsView(store: terminalsStore)
                         }
                     }
                 } else {

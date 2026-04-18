@@ -16,7 +16,7 @@ public struct SignedInFeature {
         public var selectedWorkspaceID: UUID?
         public var detail: WorkspaceDetailFeature.State?
         public var isSettingsPresented: Bool = false
-        @Presents public var terminal: TerminalFeature.State?
+        @Presents public var terminals: TerminalSessionsFeature.State?
 
         public init(deployment: StoredDeployment) {
             self.deployment = deployment
@@ -28,7 +28,7 @@ public struct SignedInFeature {
         case workspaceList(WorkspaceListFeature.Action)
         case detail(WorkspaceDetailFeature.Action)
         case openTerminal(WorkspaceAgent)
-        case terminal(PresentationAction<TerminalFeature.Action>)
+        case terminals(PresentationAction<TerminalSessionsFeature.Action>)
         case settingsButtonTapped
         case settingsDismissed
         case signOutTapped
@@ -59,13 +59,13 @@ public struct SignedInFeature {
                 return .none
 
             case let .openTerminal(agent):
-                state.terminal = TerminalFeature.State(
+                state.terminals = TerminalSessionsFeature.State(
                     agent: agent,
                     deployment: state.deployment.deployment
                 )
                 return .none
 
-            case .terminal:
+            case .terminals:
                 return .none
 
             case .settingsButtonTapped:
@@ -91,8 +91,8 @@ public struct SignedInFeature {
         .ifLet(\.detail, action: \.detail) {
             WorkspaceDetailFeature()
         }
-        .ifLet(\.$terminal, action: \.terminal) {
-            TerminalFeature()
+        .ifLet(\.$terminals, action: \.terminals) {
+            TerminalSessionsFeature()
         }
     }
 }
