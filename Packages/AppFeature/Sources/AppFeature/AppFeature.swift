@@ -90,8 +90,10 @@ public struct AppFeature {
                 }
 
             case .signedIn(.signedOut):
+                let lastURL = state.signedIn?.deployment.deployment.baseURL.absoluteString ?? ""
+                let lastEmail = state.signedIn?.deployment.deployment.username ?? ""
                 state.phase = .auth
-                state.auth = AuthFeature.State()
+                state.auth = AuthFeature.State(urlInput: lastURL, emailInput: lastEmail)
                 state.signedIn = nil
                 return .none
 

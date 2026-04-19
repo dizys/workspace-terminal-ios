@@ -26,8 +26,9 @@ public struct AuthFeature {
         public var error: String?
         public var pendingDeployment: Deployment?
 
-        public init(urlInput: String = "") {
+        public init(urlInput: String = "", emailInput: String = "") {
             self.urlInput = urlInput
+            self.emailInput = emailInput
         }
     }
 
