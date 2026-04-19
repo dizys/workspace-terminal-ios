@@ -62,7 +62,7 @@ public struct WorkspaceDetailView: View {
         .navigationTitle(store.workspace?.name ?? "Workspace")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { store.send(.refresh) }
-        .task { store.send(.onAppear) }
+        .task(id: store.workspaceID) { store.send(.onAppear) }
         .alert("Something went wrong",
                isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.send(.dismissError) } })) {
             Button("OK", role: .cancel) { store.send(.dismissError) }

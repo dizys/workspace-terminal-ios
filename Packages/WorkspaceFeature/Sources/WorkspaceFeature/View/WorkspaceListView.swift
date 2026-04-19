@@ -76,7 +76,10 @@ public struct WorkspaceListView: View {
                         activeSessionCount: activeSessionCount(workspace)
                     )
                         .tag(workspace.id)
-                        .listRowBackground(Color.clear)
+                        .listRowBackground(
+                            RoundedRectangle(cornerRadius: WTRadius.md, style: .continuous)
+                                .fill(store.selectedID == workspace.id ? WTColor.surface : .clear)
+                        )
                         .listRowSeparator(.hidden)
                         .listRowInsets(EdgeInsets(top: WTSpace.xs, leading: WTSpace.lg,
                                                   bottom: WTSpace.xs, trailing: WTSpace.lg))
