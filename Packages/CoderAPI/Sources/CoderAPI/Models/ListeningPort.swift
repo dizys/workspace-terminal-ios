@@ -50,3 +50,20 @@ public struct ListeningPort: Sendable, Hashable, Codable, Identifiable {
 struct ListeningPortsResponse: Codable {
     let ports: [ListeningPort]
 }
+
+/// A listening port annotated with which agent it belongs to.
+/// Used in the UI to disambiguate when multiple agents listen on the
+/// same port number.
+public struct AgentPort: Sendable, Hashable, Identifiable {
+    public let port: ListeningPort
+    public let agentID: UUID
+    public let agentName: String
+
+    public var id: String { "\(agentID.uuidString):\(port.port)" }
+
+    public init(port: ListeningPort, agentID: UUID, agentName: String) {
+        self.port = port
+        self.agentID = agentID
+        self.agentName = agentName
+    }
+}

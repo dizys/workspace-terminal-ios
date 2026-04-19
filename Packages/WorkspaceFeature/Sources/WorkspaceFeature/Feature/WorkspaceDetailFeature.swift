@@ -14,7 +14,7 @@ public struct WorkspaceDetailFeature {
         public var isLoading: Bool = false
         public var pendingTransition: WorkspaceBuild.Transition?
         public var buildLogs: [BuildLog] = []
-        public var listeningPorts: [ListeningPort] = []
+        public var listeningPorts: [AgentPort] = []
         public var appHostname: String?
         public var error: String?
 
@@ -43,7 +43,7 @@ public struct WorkspaceDetailFeature {
         case buildCreated(Result<WorkspaceBuild, WorkspaceFailure>)
         case buildLogReceived(BuildLog)
         case buildLogStreamFinished
-        case portsLoaded([ListeningPort])
+        case portsLoaded([AgentPort])
         case appHostLoaded(String?)
         case dismissError
     }
@@ -94,10 +94,12 @@ public struct WorkspaceDetailFeature {
                     guard let api = await client() else { return }
                     // Poll every 5s while workspace detail is visible.
                     while !Task.isCancelled {
-                        var allPorts: [ListeningPort] = []
+                        var allPorts: [AgentPort] = []
                         for agent in agents {
                             if let ports = try? await api.listListeningPorts(agentID: agent.id) {
-                                allPorts.append(contentsOf: ports)
+                                for p in ports {
+                                    allPorts.append(AgentPort(port: p, agentID: agent.id, agentName: agent.name))
+                                }
                             }
                         }
                         await send(.portsLoaded(allPorts))
@@ -155,7 +157,7 @@ public struct WorkspaceDetailFeature {
                 return .send(.refresh)
 
             case let .portsLoaded(ports):
-                state.listeningPorts = ports.sorted(by: { $0.port < $1.port })
+                state.listeningPorts = ports.sorted(by: { $0.port.port < $1.port.port })
                 return .none
 
             case let .appHostLoaded(host):

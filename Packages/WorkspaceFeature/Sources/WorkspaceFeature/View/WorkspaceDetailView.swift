@@ -429,9 +429,13 @@ private struct BuildLogCard: View {
 // MARK: - Ports
 
 private struct PortsCard: View {
-    let ports: [ListeningPort]
+    let ports: [AgentPort]
     let workspace: Workspace
     let appHostname: String?
+
+    private var hasMultipleAgents: Bool {
+        Set(ports.map(\.agentID)).count > 1
+    }
 
     var body: some View {
         WTCard {
@@ -450,14 +454,20 @@ private struct PortsCard: View {
                 }
 
                 VStack(spacing: WTSpace.sm) {
-                    ForEach(ports) { port in
-                        if let url = portURL(port) {
+                    ForEach(ports) { agentPort in
+                        if let url = portURL(agentPort) {
                             Link(destination: url) {
-                                PortRow(port: port)
+                                PortRow(
+                                    port: agentPort.port,
+                                    agentName: hasMultipleAgents ? agentPort.agentName : nil
+                                )
                             }
                         } else {
-                            PortRow(port: port)
-                                .opacity(0.5)
+                            PortRow(
+                                port: agentPort.port,
+                                agentName: hasMultipleAgents ? agentPort.agentName : nil
+                            )
+                            .opacity(0.5)
                         }
                     }
                 }
@@ -465,21 +475,9 @@ private struct PortsCard: View {
         }
     }
 
-    /// Build the subdomain URL for a port, or nil if the deployment
-    /// doesn't have wildcard apps configured.
-    ///
-    /// URL pattern (from Coder Go source):
-    ///   `<port>--<agent>--<workspace>--<owner><app-host>`
-    /// where app-host is e.g. `*--apps.coder.example.com` with `*` replaced.
-    ///
-    /// Source: `.refs/coder/codersdk/deployment.go:4564-4566`
-    private func portURL(_ port: ListeningPort) -> URL? {
+    private func portURL(_ agentPort: AgentPort) -> URL? {
         guard let hostTemplate = appHostname else { return nil }
-        let agents = workspace.latestBuild.resources.flatMap(\.agents)
-        guard let agent = agents.first(where: { $0.status == .connected }) ?? agents.first else {
-            return nil
-        }
-        let slug = "\(port.port)--\(agent.name)--\(workspace.name)--\(workspace.ownerName)"
+        let slug = "\(agentPort.port.port)--\(agentPort.agentName)--\(workspace.name)--\(workspace.ownerName)"
         let host = hostTemplate.replacingOccurrences(of: "*", with: slug)
         return URL(string: "https://\(host)")
     }
@@ -487,6 +485,7 @@ private struct PortsCard: View {
 
 private struct PortRow: View {
     let port: ListeningPort
+    var agentName: String?
 
     var body: some View {
         HStack(spacing: WTSpace.md) {
@@ -505,10 +504,17 @@ private struct PortRow: View {
                             .foregroundStyle(WTColor.textTertiary)
                     }
                 }
-                if !port.processName.isEmpty {
-                    Text(port.processName)
-                        .font(WTFont.caption)
-                        .foregroundStyle(WTColor.textSecondary)
+                HStack(spacing: WTSpace.sm) {
+                    if !port.processName.isEmpty {
+                        Text(port.processName)
+                            .font(WTFont.caption)
+                            .foregroundStyle(WTColor.textSecondary)
+                    }
+                    if let agentName {
+                        Text("on \(agentName)")
+                            .font(WTFont.caption)
+                            .foregroundStyle(WTColor.textTertiary)
+                    }
                 }
             }
             Spacer()
