@@ -206,6 +206,7 @@ private extension StoredDeployment {
 
 private struct FontSizeCard: View {
     @AppStorage("terminalFontSize") private var fontSize: Double = 14
+    private static let defaultSize: Double = 14
 
     var body: some View {
         WTCard {
@@ -221,12 +222,26 @@ private struct FontSizeCard: View {
                         .font(WTFont.monoSmall)
                         .foregroundStyle(WTColor.textSecondary)
                         .monospacedDigit()
+                    if Int(fontSize) != Int(Self.defaultSize) {
+                        Button {
+                            withAnimation { fontSize = Self.defaultSize }
+                        } label: {
+                            Text("Reset")
+                                .font(WTFont.caption)
+                                .foregroundStyle(WTColor.accent)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
                 Slider(value: $fontSize, in: 8...32, step: 1)
                     .tint(WTColor.accent)
                 HStack {
                     Text("A")
                         .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .foregroundStyle(WTColor.textTertiary)
+                    Spacer()
+                    Text("Default: \(Int(Self.defaultSize))pt")
+                        .font(WTFont.caption)
                         .foregroundStyle(WTColor.textTertiary)
                     Spacer()
                     Text("A")
