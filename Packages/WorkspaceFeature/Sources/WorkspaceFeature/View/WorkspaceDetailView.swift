@@ -496,7 +496,7 @@ private struct PortRow: View {
                 .frame(width: 24)
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: WTSpace.sm) {
-                    Text("\(port.port)")
+                    Text(String(port.port))
                         .font(WTFont.monoSmall)
                         .foregroundStyle(WTColor.textPrimary)
                     if let hint = port.portHint {
