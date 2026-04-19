@@ -26,6 +26,10 @@ public protocol CoderAPIClient: Sendable {
     func createBuild(workspaceID: UUID, transition: WorkspaceBuild.Transition) async throws -> WorkspaceBuild
     func fetchBuild(id: UUID) async throws -> WorkspaceBuild
     func streamBuildLogs(buildID: UUID, follow: Bool) async throws -> AsyncThrowingStream<BuildLog, Error>
+
+    // Ports
+    func listListeningPorts(agentID: UUID) async throws -> [ListeningPort]
+    func appHost() async throws -> String?
 }
 
 /// Live implementation of `CoderAPIClient` backed by `HTTPClient`.

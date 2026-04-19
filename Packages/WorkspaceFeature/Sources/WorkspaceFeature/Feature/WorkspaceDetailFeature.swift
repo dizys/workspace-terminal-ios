@@ -14,6 +14,8 @@ public struct WorkspaceDetailFeature {
         public var isLoading: Bool = false
         public var pendingTransition: WorkspaceBuild.Transition?
         public var buildLogs: [BuildLog] = []
+        public var listeningPorts: [ListeningPort] = []
+        public var appHostname: String?
         public var error: String?
 
         public var id: UUID { workspaceID }
@@ -41,12 +43,17 @@ public struct WorkspaceDetailFeature {
         case buildCreated(Result<WorkspaceBuild, WorkspaceFailure>)
         case buildLogReceived(BuildLog)
         case buildLogStreamFinished
+        case portsLoaded([ListeningPort])
+        case appHostLoaded(String?)
         case dismissError
     }
 
     @Dependency(\.authenticatedAPIClient) var apiClient
+    @Dependency(\.continuousClock) var clock
 
     public init() {}
+
+    private enum CancelID: Hashable { case portPoll }
 
     public var body: some ReducerOf<Self> {
         Reduce { state, action in
@@ -55,23 +62,49 @@ public struct WorkspaceDetailFeature {
                 state.isLoading = true
                 let id = state.workspaceID
                 let client = apiClient
-                return .run { send in
-                    guard let api = await client() else {
-                        await send(.workspaceLoaded(.failure(WorkspaceFailure(message: "Not signed in"))))
-                        return
+                return .merge(
+                    .run { send in
+                        guard let api = await client() else {
+                            await send(.workspaceLoaded(.failure(WorkspaceFailure(message: "Not signed in"))))
+                            return
+                        }
+                        do {
+                            let ws = try await api.fetchWorkspace(id: id)
+                            await send(.workspaceLoaded(.success(ws)))
+                        } catch {
+                            await send(.workspaceLoaded(.failure(WorkspaceFailure(error))))
+                        }
+                    },
+                    .run { send in
+                        guard let api = await client() else { return }
+                        let host = try? await api.appHost()
+                        await send(.appHostLoaded(host))
                     }
-                    do {
-                        let ws = try await api.fetchWorkspace(id: id)
-                        await send(.workspaceLoaded(.success(ws)))
-                    } catch {
-                        await send(.workspaceLoaded(.failure(WorkspaceFailure(error))))
-                    }
-                }
+                )
 
             case let .workspaceLoaded(.success(ws)):
                 state.workspace = ws
                 state.isLoading = false
-                return .none
+                // Start polling ports for connected agents.
+                let agents = ws.latestBuild.resources.flatMap(\.agents)
+                    .filter { $0.status == .connected }
+                let client = apiClient
+                let clock = self.clock
+                return .run { send in
+                    guard let api = await client() else { return }
+                    // Poll every 5s while workspace detail is visible.
+                    while !Task.isCancelled {
+                        var allPorts: [ListeningPort] = []
+                        for agent in agents {
+                            if let ports = try? await api.listListeningPorts(agentID: agent.id) {
+                                allPorts.append(contentsOf: ports)
+                            }
+                        }
+                        await send(.portsLoaded(allPorts))
+                        try await clock.sleep(for: .seconds(5))
+                    }
+                }
+                .cancellable(id: CancelID.portPoll, cancelInFlight: true)
 
             case let .workspaceLoaded(.failure(failure)):
                 state.error = failure.message
@@ -120,6 +153,14 @@ public struct WorkspaceDetailFeature {
             case .buildLogStreamFinished:
                 state.pendingTransition = nil
                 return .send(.refresh)
+
+            case let .portsLoaded(ports):
+                state.listeningPorts = ports.sorted(by: { $0.port < $1.port })
+                return .none
+
+            case let .appHostLoaded(host):
+                state.appHostname = host
+                return .none
 
             case .dismissError:
                 state.error = nil

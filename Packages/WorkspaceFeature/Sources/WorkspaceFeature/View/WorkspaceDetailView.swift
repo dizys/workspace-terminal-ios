@@ -38,6 +38,13 @@ public struct WorkspaceDetailView: View {
                                 onKillAgentSessions: onKillAgentSessions
                             )
                         }
+                        if !store.listeningPorts.isEmpty {
+                            PortsCard(
+                                ports: store.listeningPorts,
+                                workspace: workspace,
+                                appHostname: store.appHostname
+                            )
+                        }
                         if !store.buildLogs.isEmpty {
                             BuildLogCard(logs: store.buildLogs)
                         }
@@ -419,4 +426,99 @@ private struct BuildLogCard: View {
         }
     }
 }
+// MARK: - Ports
+
+private struct PortsCard: View {
+    let ports: [ListeningPort]
+    let workspace: Workspace
+    let appHostname: String?
+
+    var body: some View {
+        WTCard {
+            VStack(alignment: .leading, spacing: WTSpace.md) {
+                HStack {
+                    Text("Ports")
+                        .font(WTFont.captionEmphasized)
+                        .foregroundStyle(WTColor.textTertiary)
+                        .textCase(.uppercase)
+                        .tracking(0.5)
+                    Spacer()
+                    Text("\(ports.count)")
+                        .font(WTFont.captionEmphasized)
+                        .foregroundStyle(WTColor.textTertiary)
+                        .monospacedDigit()
+                }
+
+                VStack(spacing: WTSpace.sm) {
+                    ForEach(ports) { port in
+                        if let url = portURL(port) {
+                            Link(destination: url) {
+                                PortRow(port: port)
+                            }
+                        } else {
+                            PortRow(port: port)
+                                .opacity(0.5)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Build the subdomain URL for a port, or nil if the deployment
+    /// doesn't have wildcard apps configured.
+    ///
+    /// URL pattern (from Coder Go source):
+    ///   `<port>--<agent>--<workspace>--<owner><app-host>`
+    /// where app-host is e.g. `*--apps.coder.example.com` with `*` replaced.
+    ///
+    /// Source: `.refs/coder/codersdk/deployment.go:4564-4566`
+    private func portURL(_ port: ListeningPort) -> URL? {
+        guard let hostTemplate = appHostname else { return nil }
+        let agents = workspace.latestBuild.resources.flatMap(\.agents)
+        guard let agent = agents.first(where: { $0.status == .connected }) ?? agents.first else {
+            return nil
+        }
+        let slug = "\(port.port)--\(agent.name)--\(workspace.name)--\(workspace.ownerName)"
+        let host = hostTemplate.replacingOccurrences(of: "*", with: slug)
+        return URL(string: "https://\(host)")
+    }
+}
+
+private struct PortRow: View {
+    let port: ListeningPort
+
+    var body: some View {
+        HStack(spacing: WTSpace.md) {
+            Image(systemName: "network")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(WTColor.accent)
+                .frame(width: 24)
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: WTSpace.sm) {
+                    Text("\(port.port)")
+                        .font(WTFont.monoSmall)
+                        .foregroundStyle(WTColor.textPrimary)
+                    if let hint = port.portHint {
+                        Text(hint)
+                            .font(WTFont.caption)
+                            .foregroundStyle(WTColor.textTertiary)
+                    }
+                }
+                if !port.processName.isEmpty {
+                    Text(port.processName)
+                        .font(WTFont.caption)
+                        .foregroundStyle(WTColor.textSecondary)
+                }
+            }
+            Spacer()
+            Image(systemName: "arrow.up.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(WTColor.accent)
+        }
+        .padding(.vertical, WTSpace.xs)
+        .contentShape(Rectangle())
+    }
+}
+
 #endif

@@ -103,6 +103,8 @@ struct UnimplementedCoderAPIClient: CoderAPIClient {
     func createBuild(workspaceID: UUID, transition: WorkspaceBuild.Transition) async throws -> WorkspaceBuild { fail() }
     func fetchBuild(id: UUID) async throws -> WorkspaceBuild { fail() }
     func streamBuildLogs(buildID: UUID, follow: Bool) async throws -> AsyncThrowingStream<BuildLog, Error> { fail() }
+    func listListeningPorts(agentID: UUID) async throws -> [ListeningPort] { fail() }
+    func appHost() async throws -> String? { fail() }
 }
 
 struct UnimplementedAuthSession: OIDCFlow.AuthSession {
