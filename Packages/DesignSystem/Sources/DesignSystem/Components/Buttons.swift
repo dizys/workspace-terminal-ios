@@ -84,12 +84,14 @@ public struct WTOAuthButton: View {
         case github
         case oidc(displayText: String, iconURL: URL?)
         case password
+        case token
 
         var systemIcon: String {
             switch self {
             case .github:   return "person.crop.square.filled.and.at.rectangle"
             case .oidc:     return "key.horizontal.fill"
             case .password: return "envelope.fill"
+            case .token:    return "ticket.fill"
             }
         }
 
@@ -98,6 +100,7 @@ public struct WTOAuthButton: View {
             case .github:   return WTColor.adaptive(light: 0x000000, dark: 0xFFFFFF)
             case .oidc:     return WTColor.accent
             case .password: return WTColor.surfaceElevated
+            case .token:    return WTColor.surfaceElevated
             }
         }
 
@@ -106,6 +109,7 @@ public struct WTOAuthButton: View {
             case .github:   return WTColor.adaptive(light: 0xFFFFFF, dark: 0x000000)
             case .oidc:     return WTColor.textOnAccent
             case .password: return WTColor.textPrimary
+            case .token:    return WTColor.textPrimary
             }
         }
 
@@ -114,6 +118,7 @@ public struct WTOAuthButton: View {
             case .github:                 return "Continue with GitHub"
             case let .oidc(text, _):      return text
             case .password:               return "Email & password"
+            case .token:                  return "Session token"
             }
         }
     }

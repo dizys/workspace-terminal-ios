@@ -20,6 +20,7 @@ public struct AuthFeature {
         public var urlInput: String = ""
         public var emailInput: String = ""
         public var passwordInput: String = ""
+        public var tokenInput: String = ""
         public var phase: Phase = .enteringURL
         public var availableMethods: [AuthMethod] = []
         public var error: String?
@@ -35,6 +36,7 @@ public struct AuthFeature {
         case probingMethods
         case choosingMethod
         case enteringPassword
+        case enteringToken
         case openingOIDC
         case finalizing
     }
@@ -43,13 +45,17 @@ public struct AuthFeature {
         case urlInputChanged(String)
         case emailInputChanged(String)
         case passwordInputChanged(String)
+        case tokenInputChanged(String)
         case continueWithURLTapped
         case methodsLoaded(Result<AuthMethods, Failure>)
         case methodTapped(AuthMethod)
+        case tokenSignInTapped
         case backToMethodPickerTapped
         case submitPasswordTapped
+        case submitTokenTapped
         case passwordSignInCompleted(Result<StoredDeployment, Failure>)
         case oidcSignInCompleted(Result<StoredDeployment, Failure>)
+        case tokenSignInCompleted(Result<StoredDeployment, Failure>)
         case signedIn(StoredDeployment)
         case dismissError
     }
@@ -63,6 +69,7 @@ public struct AuthFeature {
 
     @Dependency(\.coderAPIClientFactory) var clientFactory
     @Dependency(\.passwordLogin) var passwordLogin
+    @Dependency(\.tokenLogin) var tokenLogin
     @Dependency(\.oidcFlow) var oidcFlow
 
     public init() {}
@@ -80,6 +87,10 @@ public struct AuthFeature {
 
             case let .passwordInputChanged(value):
                 state.passwordInput = value
+                return .none
+
+            case let .tokenInputChanged(value):
+                state.tokenInput = value
                 return .none
 
             case .continueWithURLTapped:
@@ -134,8 +145,13 @@ public struct AuthFeature {
                     }
                 }
 
+            case .tokenSignInTapped:
+                state.phase = .enteringToken
+                return .none
+
             case .backToMethodPickerTapped:
                 state.passwordInput = ""
+                state.tokenInput = ""
                 state.error = nil
                 state.phase = .choosingMethod
                 return .none
@@ -160,12 +176,36 @@ public struct AuthFeature {
                     }
                 }
 
+            case .submitTokenTapped:
+                guard let deployment = state.pendingDeployment else { return .none }
+                let rawToken = state.tokenInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard CoderTokenFormat.isValid(rawToken) else {
+                    state.error = "Invalid token format. Tokens look like: xxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxx"
+                    return .none
+                }
+                state.phase = .finalizing
+                let login = tokenLogin
+                return .run { send in
+                    do {
+                        let stored = try await login.signIn(
+                            deployment: deployment,
+                            rawToken: rawToken,
+                            tls: .default
+                        )
+                        await send(.tokenSignInCompleted(.success(stored)))
+                    } catch {
+                        await send(.tokenSignInCompleted(.failure(Failure(error))))
+                    }
+                }
+
             case let .passwordSignInCompleted(.success(stored)),
-                 let .oidcSignInCompleted(.success(stored)):
+                 let .oidcSignInCompleted(.success(stored)),
+                 let .tokenSignInCompleted(.success(stored)):
                 return .send(.signedIn(stored))
 
             case let .passwordSignInCompleted(.failure(failure)),
-                 let .oidcSignInCompleted(.failure(failure)):
+                 let .oidcSignInCompleted(.failure(failure)),
+                 let .tokenSignInCompleted(.failure(failure)):
                 state.error = failure.message
                 state.phase = .choosingMethod
                 return .none

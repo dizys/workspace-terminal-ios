@@ -29,6 +29,8 @@ public struct LoginView: View {
                             MethodPickerStep(store: store)
                         case .enteringPassword:
                             PasswordEntryStep(store: store)
+                        case .enteringToken:
+                            TokenEntryStep(store: store)
                         case .openingOIDC:
                             ProgressStep(label: "Opening sign-in…")
                         case .finalizing:
@@ -134,6 +136,9 @@ private struct MethodPickerStep: View {
                     store.send(.methodTapped(method))
                 }
             }
+            WTOAuthButton(variant: .token) {
+                store.send(.tokenSignInTapped)
+            }
         }
     }
 
@@ -186,6 +191,50 @@ private struct PasswordEntryStep: View {
 
     private var canSubmit: Bool {
         !store.emailInput.isEmpty && !store.passwordInput.isEmpty
+    }
+}
+
+private struct TokenEntryStep: View {
+    @Bindable var store: StoreOf<AuthFeature>
+
+    var body: some View {
+        VStack(spacing: WTSpace.lg) {
+            HStack {
+                Button { store.send(.backToMethodPickerTapped) } label: {
+                    HStack(spacing: WTSpace.xs) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text("Choose another method")
+                            .font(WTFont.subheadline)
+                    }
+                    .foregroundStyle(WTColor.textSecondary)
+                }
+                .buttonStyle(.plain)
+                Spacer()
+            }
+
+            WTInputField(
+                label: "Session token",
+                placeholder: "Paste your session token",
+                icon: "ticket",
+                isSecure: true,
+                text: $store.tokenInput.sending(\.tokenInputChanged)
+            )
+
+            WTPrimaryButton("Sign in", icon: "arrow.right", action: { store.send(.submitTokenTapped) })
+                .opacity(canSubmit ? 1 : 0.4)
+                .disabled(!canSubmit)
+
+            Text("Generate a token with `coder tokens create` or from your Coder dashboard under Settings → Tokens.")
+                .font(WTFont.subheadline)
+                .foregroundStyle(WTColor.textTertiary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, WTSpace.lg)
+        }
+    }
+
+    private var canSubmit: Bool {
+        !store.tokenInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }
 

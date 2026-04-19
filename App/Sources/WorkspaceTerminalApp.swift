@@ -11,8 +11,37 @@ struct WorkspaceTerminalApp: App {
     let store: StoreOf<AppFeature>
 
     init() {
-        let keychain = LiveKeychainClient()
-        let deploymentStore = LiveDeploymentStore(keychain: keychain)
+        let keychain: any KeychainClient
+        let deploymentStore: any DeploymentStore
+
+        #if DEBUG
+        if let token = ProcessInfo.processInfo.environment["UITEST_SESSION_TOKEN"],
+           let urlString = ProcessInfo.processInfo.environment["UITEST_CODER_URL"],
+           let url = URL(string: urlString)
+        {
+            let mem = InMemoryKeychainClient()
+            let store = LiveDeploymentStore(keychain: mem)
+            let deployment = StoredDeployment(
+                deployment: Deployment(
+                    baseURL: url,
+                    displayName: url.host ?? "Test",
+                    username: ProcessInfo.processInfo.environment["UITEST_USERNAME"] ?? "admin"
+                ),
+                token: SessionToken(token)
+            )
+            Task { try? await store.upsertActive(deployment) }
+            keychain = mem
+            deploymentStore = store
+        } else {
+            keychain = LiveKeychainClient()
+            deploymentStore = LiveDeploymentStore(keychain: keychain)
+        }
+        #else
+        keychain = LiveKeychainClient()
+        deploymentStore = LiveDeploymentStore(keychain: keychain)
+        #endif
+        _ = keychain
+
         let appVersion = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "0.1.0"
         let appBuild = (Bundle.main.infoDictionary?["CFBundleVersion"] as? String) ?? "1"
         let userAgent = CoderAPI.userAgent(appVersion: appVersion, build: appBuild)
@@ -51,6 +80,7 @@ struct WorkspaceTerminalApp: App {
                 )
             }
             $0.passwordLogin = PasswordLogin(userAgent: userAgent)
+            $0.tokenLogin = TokenLogin(userAgent: userAgent)
             $0.oidcFlow = OIDCFlow(userAgent: userAgent, session: oidcSession)
         } operation: {
             Store(initialState: AppFeature.State()) { AppFeature() }

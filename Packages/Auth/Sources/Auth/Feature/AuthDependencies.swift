@@ -60,6 +60,26 @@ extension DependencyValues {
     }
 }
 
+// MARK: - TokenLogin
+
+extension TokenLogin: DependencyKey {
+    public static let liveValue: TokenLogin = .init(
+        userAgent: CoderAPI.userAgent(appVersion: "0.1.0", build: "1")
+    )
+
+    public static let testValue: TokenLogin = .init(
+        userAgent: "test",
+        clientFactory: { deployment, _, _ in UnimplementedCoderAPIClient(deployment: deployment) }
+    )
+}
+
+extension DependencyValues {
+    public var tokenLogin: TokenLogin {
+        get { self[TokenLogin.self] }
+        set { self[TokenLogin.self] = newValue }
+    }
+}
+
 // MARK: - OIDCFlow
 
 extension OIDCFlow: DependencyKey {
