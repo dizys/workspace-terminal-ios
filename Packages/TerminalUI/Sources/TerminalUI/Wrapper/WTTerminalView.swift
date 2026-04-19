@@ -72,6 +72,12 @@ public struct WTTerminalView: UIViewRepresentable {
         //    "scroll wheel enters copy-mode" binding work on iPhone.
         context.coordinator.installTwoFingerWheelPan(on: view)
 
+        // 3) Pinch-to-zoom font size. UIPinchGestureRecognizer on the
+        //    UIKit view (not SwiftUI MagnifyGesture) so it targets the
+        //    TerminalView directly and doesn't conflict with SwiftUI's
+        //    gesture system.
+        context.coordinator.installPinchZoom(on: view)
+
         context.coordinator.attach(view: view, inbound: inbound())
         return view
     }
@@ -210,6 +216,11 @@ public struct WTTerminalView: UIViewRepresentable {
         private var longPressGuard: LongPressGuard?
         private var wheelPanRecognizer: UIPanGestureRecognizer?
         private var wheelPanLastY: CGFloat = 0
+        private var pinchRecognizer: UIPinchGestureRecognizer?
+        private var pinchBaseFontSize: CGFloat = 14
+        private static let minFontSize: CGFloat = 8
+        private static let maxFontSize: CGFloat = 32
+        @AppStorage("terminalFontSize") private var persistedFontSize: Double = 14
 
         /// Add a UIGestureRecognizerDelegate to ALL UILongPressGestureRecognizers
         /// that suppresses them whenever the remote terminal has mouse mode on.
@@ -234,12 +245,40 @@ public struct WTTerminalView: UIViewRepresentable {
             clampSwiftTermPanRecognizers(on: view)
         }
 
+        /// Pinch-to-zoom font size with persistence.
+        func installPinchZoom(on view: TerminalView) {
+            let pinch = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch(_:)))
+            view.addGestureRecognizer(pinch)
+            pinchRecognizer = pinch
+            let saved = CGFloat(persistedFontSize)
+            if abs(view.font.pointSize - saved) > 0.5 {
+                view.font = UIFont.monospacedSystemFont(ofSize: saved, weight: .regular)
+            }
+        }
+
+        @objc private func handlePinch(_ recognizer: UIPinchGestureRecognizer) {
+            guard let view = self.view else { return }
+            switch recognizer.state {
+            case .began:
+                pinchBaseFontSize = view.font.pointSize
+            case .changed:
+                let newSize = min(
+                    Self.maxFontSize,
+                    max(Self.minFontSize, pinchBaseFontSize * recognizer.scale)
+                )
+                let rounded = (newSize * 2).rounded() / 2
+                if abs(view.font.pointSize - rounded) >= 0.5 {
+                    view.font = UIFont.monospacedSystemFont(ofSize: rounded, weight: .regular)
+                }
+            case .ended, .cancelled:
+                persistedFontSize = Double(view.font.pointSize)
+            default:
+                break
+            }
+        }
+
         /// Force every SwiftTerm-added UIPanGestureRecognizer to single-finger
-        /// only, AND make it require our wheel pan to fail first. Both are
-        /// needed: clamping prevents SwiftTerm's pan from accepting a 2-finger
-        /// gesture once already started; require-to-fail makes UIKit defer to
-        /// our 2-finger recognizer at gesture-begin time so SwiftTerm can't
-        /// jump-start as a 1-finger drag.
+        /// only, AND make it require our wheel pan to fail first.
         func clampSwiftTermPanRecognizers(on view: TerminalView) {
             guard let wheel = self.wheelPanRecognizer else { return }
             for recognizer in view.gestureRecognizers ?? [] {
