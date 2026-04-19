@@ -105,6 +105,7 @@ struct UnimplementedCoderAPIClient: CoderAPIClient {
     func streamBuildLogs(buildID: UUID, follow: Bool) async throws -> AsyncThrowingStream<BuildLog, Error> { fail() }
     func listListeningPorts(agentID: UUID) async throws -> [ListeningPort] { fail() }
     func appHost() async throws -> String? { fail() }
+    func agentConnectionInfo(agentID: UUID) async throws -> AgentConnectionInfo { fail() }
 }
 
 struct UnimplementedAuthSession: OIDCFlow.AuthSession {

@@ -30,6 +30,9 @@ public protocol CoderAPIClient: Sendable {
     // Ports
     func listListeningPorts(agentID: UUID) async throws -> [ListeningPort]
     func appHost() async throws -> String?
+
+    // Tailnet
+    func agentConnectionInfo(agentID: UUID) async throws -> AgentConnectionInfo
 }
 
 /// Live implementation of `CoderAPIClient` backed by `HTTPClient`.
