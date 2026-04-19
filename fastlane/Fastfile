@@ -7,11 +7,10 @@ platform :ios do
       workspace: "WorkspaceTerminal.xcworkspace",
       scheme: "WorkspaceTerminal",
       devices: [
-        "iPhone 16 Pro Max",     # 6.9"
-        "iPhone 16 Pro",         # 6.3"
-        "iPhone 16",             # 6.1"
-        "iPhone SE (3rd generation)", # 4.7" (if supporting)
-        "iPad Pro 13-inch (M4)", # 13"
+        "iPhone 17 Pro Max",
+        "iPhone 17 Pro",
+        "iPhone 17",
+        "iPad Pro 13-inch (M5)",
       ],
       languages: ["en-US"],
       output_directory: "./fastlane/screenshots",
