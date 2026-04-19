@@ -72,7 +72,6 @@ public struct SignedInRootView: View {
 
 private struct SettingsSheetView: View {
     @Bindable var store: StoreOf<SignedInFeature>
-    @AppStorage("selectedTerminalThemeID") private var selectedThemeID: String = TerminalTheme.default.id
 
     var body: some View {
         NavigationStack {
@@ -81,8 +80,7 @@ private struct SettingsSheetView: View {
                 ScrollView {
                     VStack(spacing: WTSpace.xl) {
                         AccountCard(store: store)
-                        ThemePickerCard(selectedThemeID: $selectedThemeID)
-                        FontSizeCard()
+                        TerminalSettingsLink()
                         SignOutCard(store: store)
                         Spacer(minLength: WTSpace.xl)
                     }
@@ -200,6 +198,60 @@ private struct SignOutCard: View {
 
 private extension StoredDeployment {
     var host: String { deployment.baseURL.host ?? deployment.displayName }
+}
+
+// MARK: - Terminal settings link
+
+private struct TerminalSettingsLink: View {
+    var body: some View {
+        NavigationLink {
+            TerminalSettingsView()
+        } label: {
+            WTCard {
+                HStack(spacing: WTSpace.md) {
+                    Image(systemName: "terminal")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(WTColor.accent)
+                        .frame(width: 32, height: 32)
+                        .background(WTColor.accentSoft, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Terminal")
+                            .font(WTFont.bodyEmphasized)
+                            .foregroundStyle(WTColor.textPrimary)
+                        Text("Theme, font size")
+                            .font(WTFont.caption)
+                            .foregroundStyle(WTColor.textSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(WTColor.textTertiary)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct TerminalSettingsView: View {
+    @AppStorage("selectedTerminalThemeID") private var selectedThemeID: String = TerminalTheme.default.id
+
+    var body: some View {
+        ZStack {
+            WTColor.background.ignoresSafeArea()
+            ScrollView {
+                VStack(spacing: WTSpace.xl) {
+                    ThemePickerCard(selectedThemeID: $selectedThemeID)
+                    FontSizeCard()
+                    Spacer(minLength: WTSpace.xl)
+                }
+                .padding(.horizontal, WTSpace.xl)
+                .padding(.top, WTSpace.lg)
+            }
+        }
+        .navigationTitle("Terminal")
+        .navigationBarTitleDisplayMode(.inline)
+    }
 }
 
 // MARK: - Font size
