@@ -227,7 +227,7 @@ public struct WTTerminalView: UIViewRepresentable {
         private var pinchBaseFontSize: CGFloat = 14
         private static let minFontSize: CGFloat = 8
         private static let maxFontSize: CGFloat = 32
-        @AppStorage("terminalFontSize") private var persistedFontSize: Double = 14
+        @AppStorage("terminalFontSize") var persistedFontSize: Double = 14
 
         /// Add a UIGestureRecognizerDelegate to ALL UILongPressGestureRecognizers
         /// that suppresses them whenever the remote terminal has mouse mode on.
