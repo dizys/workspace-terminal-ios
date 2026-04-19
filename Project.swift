@@ -86,6 +86,17 @@ let project = Project(
                 .package(product: "TestSupport"),
             ]
         ),
+        .target(
+            name: "WorkspaceTerminalUITests",
+            destinations: Constants.destinations,
+            product: .uiTests,
+            bundleId: "\(Constants.appBundleId).uitests",
+            deploymentTargets: Constants.deploymentTarget,
+            sources: ["App/UITests/**"],
+            dependencies: [
+                .target(name: "WorkspaceTerminal"),
+            ]
+        ),
     ],
     schemes: [
         .scheme(

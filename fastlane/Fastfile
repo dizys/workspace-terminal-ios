@@ -5,7 +5,7 @@ platform :ios do
   lane :screenshots do
     capture_screenshots(
       workspace: "WorkspaceTerminal.xcworkspace",
-      scheme: "WorkspaceTerminal",
+      scheme: "WorkspaceTerminalUITests",
       devices: [
         "iPhone 17 Pro Max",
         "iPhone 17 Pro",
