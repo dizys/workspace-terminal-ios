@@ -89,12 +89,28 @@ extension HexColor {
 
 extension TerminalTheme {
     public static let bundled: [TerminalTheme] = [
+        .system,
         .tokyoNight,
         .catppuccinMocha,
         .solarizedDark,
         .dracula,
         .gruvboxDark,
     ]
+
+    public static let system = TerminalTheme(
+        id: "system",
+        name: "System",
+        ansi: [
+            "#0A0E14", "#FF6B6B", "#3DCFB6", "#E6B450",
+            "#5CCFE6", "#D4BFFF", "#95E6CB", "#E6EDF3",
+            "#2A323D", "#FF8F8F", "#5EECC0", "#FFD580",
+            "#73D0FF", "#E6CCFF", "#A8F0D8", "#F0F6FC",
+        ].map(HexColor.init),
+        foreground: HexColor("#E6EDF3"),
+        background: HexColor("#0A0E14"),
+        cursor: HexColor("#3DCFB6"),
+        selectionBackground: HexColor("#1B2129")
+    )
 
     public static let tokyoNight = TerminalTheme(
         id: "tokyo-night",
