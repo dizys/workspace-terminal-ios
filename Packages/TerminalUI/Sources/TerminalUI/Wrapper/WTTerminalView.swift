@@ -94,6 +94,13 @@ public struct WTTerminalView: UIViewRepresentable {
         private let onError: @Sendable (String) -> Void
         private weak var view: TerminalView?
         private var pumpTask: Task<Void, Never>?
+        /// Gate outbound bytes during the initial handshake. SwiftTerm
+        /// responds to DA1/DA2 queries from the server automatically; those
+        /// responses must NOT be forwarded to the PTY because by the time
+        /// they arrive the shell is in interactive mode and treats them as
+        /// keyboard input. We suppress sends for the first ~500ms after
+        /// the inbound pump starts.
+        private var suppressSendUntil: Date = .distantFuture
 
         init(
             onSend: @escaping @Sendable (Data) -> Void,
@@ -107,6 +114,8 @@ public struct WTTerminalView: UIViewRepresentable {
 
         func attach(view: TerminalView, inbound: AsyncThrowingStream<Data, Error>) {
             self.view = view
+            // Suppress DA1/DA2 response forwarding for the first 500ms.
+            suppressSendUntil = Date().addingTimeInterval(0.5)
             pumpTask?.cancel()
             let onError = self.onError                     // local Sendable capture
             pumpTask = Task { [weak self] in               // self is @MainActor → Sendable
@@ -141,6 +150,13 @@ public struct WTTerminalView: UIViewRepresentable {
         // Bridges from the delegate-conformance extension into the Coordinator's
         // private callback closures.
         fileprivate func forwardSend(data: ArraySlice<UInt8>) {
+            // Suppress SwiftTerm's automatic DA1/DA2/DA3 responses during
+            // the initial handshake window. These responses contain escape
+            // sequences like ESC[?65;4;1;2;6;21;22;17;28c that the shell
+            // echoes as literal text when they arrive too late.
+            if Date() < suppressSendUntil {
+                return
+            }
             onSend(Data(data))
         }
         fileprivate func forwardResize(rows: Int, cols: Int) {
