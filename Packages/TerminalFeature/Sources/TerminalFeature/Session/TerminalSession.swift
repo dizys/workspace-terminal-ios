@@ -2,6 +2,9 @@ import CoderAPI
 import Foundation
 import os.lock
 import PTYTransport
+#if canImport(UIKit)
+import UIKit
+#endif
 
 /// One terminal session — a thin actor over a single `PTYTransport`.
 ///
@@ -30,16 +33,19 @@ public final class TerminalSession: @unchecked Sendable {
     private static let scrollbackCap = 64 * 1024
     private let locked = OSAllocatedUnfairLock<LockedState>(initialState: LockedState())
     private var pumpTask: Task<Void, Never>?
+    private var foregroundObserver: NSObjectProtocol?
 
     public init(id: UUID, agent: WorkspaceAgent, transport: any PTYTransport) {
         self.id = id
         self.agent = agent
         self.transport = transport
         startPump()
+        observeForeground()
     }
 
     deinit {
         pumpTask?.cancel()
+        foregroundObserver.map { NotificationCenter.default.removeObserver($0) }
     }
 
     /// Returns a fresh `AsyncStream<Data>`. Multiple subscribers may exist
@@ -110,6 +116,26 @@ public final class TerminalSession: @unchecked Sendable {
             return conts
         }
         for cont in conts { cont.finish() }
+    }
+
+    /// On app foreground, proactively check if the WS is still alive.
+    /// iOS suspends WebSocket tasks in the background; the server closes
+    /// after 15s of missed pings. Without this, the receive loop stays
+    /// suspended and the user sees a frozen terminal until the system
+    /// resumes the Task (which may never happen cleanly).
+    private func observeForeground() {
+        #if canImport(UIKit)
+        foregroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.willEnterForegroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            Task {
+                await self.transport.checkAndReconnectIfNeeded()
+            }
+        }
+        #endif
     }
 }
 

@@ -106,6 +106,42 @@ public actor LivePTYTransport: PTYTransport {
         try await task.send(.data(payload))
     }
 
+    public func checkAndReconnectIfNeeded() async {
+        guard !isClosed else { return }
+        guard let task else { return }
+
+        // URLSessionWebSocketTask.state goes to .completed or .canceling
+        // when the underlying TCP connection died while the app was suspended.
+        let state = task.state
+        if state == .completed || state == .canceling {
+            // Tear down the dead connection and schedule a reconnect.
+            self.task?.cancel(with: .abnormalClosure, reason: nil)
+            self.task = nil
+            session?.invalidateAndCancel()
+            session = nil
+            receiveLoop?.cancel()
+            receiveLoop = nil
+            scheduleReconnect(after: .serverTimeout)
+        } else {
+            // Connection looks alive — send a tiny probe to verify.
+            // If the send fails, the receive loop will detect the error
+            // and trigger reconnect on its own.
+            do {
+                let probe = try ClientFrame.resize(config.initialSize).jsonData()
+                try await task.send(.data(probe))
+            } catch {
+                // Send failed — connection is dead. Tear down + reconnect.
+                self.task?.cancel(with: .abnormalClosure, reason: nil)
+                self.task = nil
+                session?.invalidateAndCancel()
+                session = nil
+                receiveLoop?.cancel()
+                receiveLoop = nil
+                scheduleReconnect(after: .serverTimeout)
+            }
+        }
+    }
+
     public func close(_ reason: CloseReason) async {
         guard !isClosed else { return }
         isClosed = true

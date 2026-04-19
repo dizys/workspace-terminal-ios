@@ -54,6 +54,8 @@ public final class MockPTYTransport: PTYTransport, @unchecked Sendable {
         lock.withLock { _resizes.append(size) }
     }
 
+    public func checkAndReconnectIfNeeded() async {}
+
     public func close(_ reason: CloseReason) async {
         lock.withLock { _closeCalls.append(reason) }
         stateContinuation.yield(.closed(reason))

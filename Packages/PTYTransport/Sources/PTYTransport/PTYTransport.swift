@@ -48,6 +48,13 @@ public protocol PTYTransport: Sendable {
 
     /// Graceful close — sends WS code 1000 and finishes both streams.
     func close(_ reason: CloseReason) async
+
+    /// Proactively check if the connection is still alive; if not, tear down
+    /// the stale socket and reconnect with the same UUID. Call this on app
+    /// foreground — iOS suspends WebSocket tasks in the background, so the
+    /// server may have closed them (15s ping timeout) without our receive
+    /// loop noticing.
+    func checkAndReconnectIfNeeded() async
 }
 
 /// Factory for live transports — one per terminal tab. Injected via TCA's
