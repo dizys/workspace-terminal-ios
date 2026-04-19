@@ -1,0 +1,56 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Capture App Store screenshots on all required device sizes"
+  lane :screenshots do
+    capture_screenshots(
+      workspace: "WorkspaceTerminal.xcworkspace",
+      scheme: "WorkspaceTerminal",
+      devices: [
+        "iPhone 16 Pro Max",     # 6.9"
+        "iPhone 16 Pro",         # 6.3"
+        "iPhone 16",             # 6.1"
+        "iPhone SE (3rd generation)", # 4.7" (if supporting)
+        "iPad Pro 13-inch (M4)", # 13"
+      ],
+      languages: ["en-US"],
+      output_directory: "./fastlane/screenshots",
+      clear_previous_screenshots: true,
+      override_status_bar: true,
+      dark_mode: true
+    )
+  end
+
+  desc "Build and upload to TestFlight"
+  lane :beta do
+    build_app(
+      workspace: "WorkspaceTerminal.xcworkspace",
+      scheme: "WorkspaceTerminal",
+      configuration: "Release",
+      export_method: "app-store",
+      output_directory: "./build",
+      clean: true
+    )
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  desc "Submit to App Store"
+  lane :release do
+    build_app(
+      workspace: "WorkspaceTerminal.xcworkspace",
+      scheme: "WorkspaceTerminal",
+      configuration: "Release",
+      export_method: "app-store",
+      output_directory: "./build",
+      clean: true
+    )
+    upload_to_app_store(
+      force: true,
+      submit_for_review: true,
+      automatic_release: true,
+      precheck_include_in_app_purchases: false
+    )
+  end
+end

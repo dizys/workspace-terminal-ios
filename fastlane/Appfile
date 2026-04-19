@@ -1,0 +1,5 @@
+app_identifier("app.workspaceterminal.ios")
+apple_id("dev@dizy.cc")
+team_id("")  # Fill with your Apple Developer Team ID
+
+itc_team_id("")  # Fill with your App Store Connect Team ID
