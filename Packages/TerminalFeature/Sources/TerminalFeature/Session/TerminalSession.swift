@@ -70,6 +70,10 @@ public final class TerminalSession: @unchecked Sendable {
         }
     }
 
+    public func clearScrollback() {
+        locked.withLock { $0.scrollback = Data() }
+    }
+
     public var state: AsyncStream<ConnectionState> { transport.state }
 
     public func connect() async throws { try await transport.connect() }
@@ -131,6 +135,11 @@ public final class TerminalSession: @unchecked Sendable {
             queue: .main
         ) { [weak self] _ in
             guard let self else { return }
+            // Clear the scrollback buffer on foreground — if we reconnect,
+            // the server replays its own ring buffer. Our local scrollback
+            // may contain stale bytes (e.g. mouse-event escape sequences
+            // that were echoed as text by a half-dead connection).
+            self.locked.withLock { $0.scrollback = Data() }
             Task {
                 await self.transport.checkAndReconnectIfNeeded()
             }
