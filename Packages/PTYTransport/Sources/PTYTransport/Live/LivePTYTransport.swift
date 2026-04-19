@@ -112,9 +112,11 @@ public actor LivePTYTransport: PTYTransport {
 
         // URLSessionWebSocketTask.state goes to .completed or .canceling
         // when the underlying TCP connection died while the app was suspended.
+        // Do NOT send a probe frame — if the connection is half-dead, the
+        // probe bytes can be echoed by the remote shell as literal text
+        // (especially inside tmux with send-keys -M). Just check the state.
         let state = task.state
         if state == .completed || state == .canceling {
-            // Tear down the dead connection and schedule a reconnect.
             self.task?.cancel(with: .abnormalClosure, reason: nil)
             self.task = nil
             session?.invalidateAndCancel()
@@ -122,24 +124,10 @@ public actor LivePTYTransport: PTYTransport {
             receiveLoop?.cancel()
             receiveLoop = nil
             scheduleReconnect(after: .serverTimeout)
-        } else {
-            // Connection looks alive — send a tiny probe to verify.
-            // If the send fails, the receive loop will detect the error
-            // and trigger reconnect on its own.
-            do {
-                let probe = try ClientFrame.resize(config.initialSize).jsonData()
-                try await task.send(.data(probe))
-            } catch {
-                // Send failed — connection is dead. Tear down + reconnect.
-                self.task?.cancel(with: .abnormalClosure, reason: nil)
-                self.task = nil
-                session?.invalidateAndCancel()
-                session = nil
-                receiveLoop?.cancel()
-                receiveLoop = nil
-                scheduleReconnect(after: .serverTimeout)
-            }
         }
+        // If state is .running or .suspended, the connection may still be
+        // alive. The receive loop will detect any actual close and trigger
+        // reconnect on its own when it resumes.
     }
 
     public func close(_ reason: CloseReason) async {
