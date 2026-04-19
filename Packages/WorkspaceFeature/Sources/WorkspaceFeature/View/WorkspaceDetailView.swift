@@ -38,11 +38,12 @@ public struct WorkspaceDetailView: View {
                                 onKillAgentSessions: onKillAgentSessions
                             )
                         }
-                        if !store.listeningPorts.isEmpty {
+                        if !store.listeningPorts.isEmpty || store.appHostname == nil {
                             PortsCard(
                                 ports: store.listeningPorts,
                                 workspace: workspace,
-                                appHostname: store.appHostname
+                                appHostname: store.appHostname,
+                                hasConnectedAgents: store.agents.contains { $0.status == .connected }
                             )
                         }
                         if !store.buildLogs.isEmpty {
@@ -432,6 +433,7 @@ private struct PortsCard: View {
     let ports: [AgentPort]
     let workspace: Workspace
     let appHostname: String?
+    var hasConnectedAgents: Bool = false
 
     private var hasMultipleAgents: Bool {
         Set(ports.map(\.agentID)).count > 1
@@ -447,29 +449,61 @@ private struct PortsCard: View {
                         .textCase(.uppercase)
                         .tracking(0.5)
                     Spacer()
-                    Text("\(ports.count)")
-                        .font(WTFont.captionEmphasized)
-                        .foregroundStyle(WTColor.textTertiary)
-                        .monospacedDigit()
+                    if !ports.isEmpty {
+                        Text("\(ports.count)")
+                            .font(WTFont.captionEmphasized)
+                            .foregroundStyle(WTColor.textTertiary)
+                            .monospacedDigit()
+                    }
                 }
 
-                VStack(spacing: WTSpace.sm) {
-                    ForEach(ports) { agentPort in
-                        if let url = portURL(agentPort) {
-                            Link(destination: url) {
+                if appHostname == nil {
+                    VStack(alignment: .leading, spacing: WTSpace.sm) {
+                        HStack(spacing: WTSpace.sm) {
+                            Image(systemName: "info.circle")
+                                .font(.system(size: 14))
+                                .foregroundStyle(WTColor.statusWarning)
+                            Text("Subdomain proxy not configured")
+                                .font(WTFont.bodyEmphasized)
+                                .foregroundStyle(WTColor.textPrimary)
+                        }
+                        Text("Your Coder deployment doesn't have wildcard app hosting enabled. Ask your admin to set the CODER_WILDCARD_ACCESS_URL environment variable.")
+                            .font(WTFont.caption)
+                            .foregroundStyle(WTColor.textSecondary)
+                        if !ports.isEmpty {
+                            Text("Use the CLI to forward ports:\ncoder port-forward \(workspace.name) --tcp <port>")
+                                .font(WTFont.monoSmall)
+                                .foregroundStyle(WTColor.textTertiary)
+                                .padding(.top, WTSpace.xs)
+                        }
+                    }
+                    .padding(.vertical, WTSpace.xs)
+                }
+
+                if !ports.isEmpty {
+                    VStack(spacing: WTSpace.sm) {
+                        ForEach(ports) { agentPort in
+                            if let url = portURL(agentPort) {
+                                Link(destination: url) {
+                                    PortRow(
+                                        port: agentPort.port,
+                                        agentName: hasMultipleAgents ? agentPort.agentName : nil
+                                    )
+                                }
+                            } else {
                                 PortRow(
                                     port: agentPort.port,
                                     agentName: hasMultipleAgents ? agentPort.agentName : nil
                                 )
+                                .opacity(0.5)
                             }
-                        } else {
-                            PortRow(
-                                port: agentPort.port,
-                                agentName: hasMultipleAgents ? agentPort.agentName : nil
-                            )
-                            .opacity(0.5)
                         }
                     }
+                } else if hasConnectedAgents && appHostname != nil {
+                    Text("No services detected. Start a dev server to see it here.")
+                        .font(WTFont.caption)
+                        .foregroundStyle(WTColor.textTertiary)
+                        .padding(.vertical, WTSpace.xs)
                 }
             }
         }
