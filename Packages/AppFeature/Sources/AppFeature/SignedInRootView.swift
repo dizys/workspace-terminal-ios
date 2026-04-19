@@ -90,6 +90,7 @@ private struct SettingsSheetView: View {
                     VStack(spacing: WTSpace.xl) {
                         AccountCard(store: store)
                         TerminalSettingsLink()
+                        AboutCard()
                         SignOutCard(store: store)
                         Spacer(minLength: WTSpace.xl)
                     }
@@ -369,6 +370,67 @@ private struct ThemePreviewDots: View {
                     .frame(width: 14, height: 14)
             }
         }
+    }
+}
+
+// MARK: - About
+
+private struct AboutCard: View {
+    private let appVersion: String = {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1.0"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        return "\(version) (\(build))"
+    }()
+
+    var body: some View {
+        WTCard {
+            VStack(spacing: WTSpace.md) {
+                aboutRow(
+                    icon: "hand.raised",
+                    title: "Privacy Policy",
+                    url: "https://workspaceterminal.app/privacy"
+                )
+                Divider().background(WTColor.border)
+                aboutRow(
+                    icon: "questionmark.circle",
+                    title: "Support",
+                    url: "https://github.com/dizys/workspace-terminal-ios/issues"
+                )
+                Divider().background(WTColor.border)
+                HStack(spacing: WTSpace.md) {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(WTColor.textTertiary)
+                        .frame(width: 32, height: 32)
+                    Text("Version")
+                        .font(WTFont.bodyEmphasized)
+                        .foregroundStyle(WTColor.textPrimary)
+                    Spacer()
+                    Text(appVersion)
+                        .font(WTFont.monoSmall)
+                        .foregroundStyle(WTColor.textSecondary)
+                }
+            }
+        }
+    }
+
+    private func aboutRow(icon: String, title: String, url: String) -> some View {
+        Link(destination: URL(string: url)!) {
+            HStack(spacing: WTSpace.md) {
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(WTColor.textTertiary)
+                    .frame(width: 32, height: 32)
+                Text(title)
+                    .font(WTFont.bodyEmphasized)
+                    .foregroundStyle(WTColor.textPrimary)
+                Spacer()
+                Image(systemName: "arrow.up.forward")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(WTColor.textTertiary)
+            }
+        }
+        .buttonStyle(.plain)
     }
 }
 
