@@ -12,6 +12,15 @@ final class ScreenshotTests: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication()
         setupSnapshot(app)
+
+        if let token = ProcessInfo.processInfo.environment["UITEST_SESSION_TOKEN"] {
+            app.launchEnvironment["UITEST_SESSION_TOKEN"] = token
+            app.launchEnvironment["UITEST_CODER_URL"] =
+                ProcessInfo.processInfo.environment["UITEST_CODER_URL"] ?? ""
+            app.launchEnvironment["UITEST_USERNAME"] =
+                ProcessInfo.processInfo.environment["UITEST_USERNAME"] ?? "admin"
+        }
+
         app.launch()
     }
 

@@ -15,12 +15,21 @@ platform :ios do
 
     destinations = devices.values.map { |id| "-destination 'platform=iOS Simulator,id=#{id}'" }.join(" ")
 
+    # Pass Coder credentials via environment so screenshot tests bypass login.
+    # Set UITEST_SESSION_TOKEN + UITEST_CODER_URL before running this lane.
+    env_args = ""
+    if ENV["UITEST_SESSION_TOKEN"]
+      env_args = "UITEST_SESSION_TOKEN='#{ENV["UITEST_SESSION_TOKEN"]}' " \
+                 "UITEST_CODER_URL='#{ENV["UITEST_CODER_URL"]}' " \
+                 "UITEST_USERNAME='#{ENV["UITEST_USERNAME"] || "admin"}'"
+    end
+
     sh("set -o pipefail && xcodebuild " \
        "-workspace ../WorkspaceTerminal.xcworkspace " \
        "-scheme WorkspaceTerminalUITests " \
        "-derivedDataPath ../build " \
        "#{destinations} " \
-       "FASTLANE_SNAPSHOT=YES FASTLANE_LANGUAGE=en-US " \
+       "FASTLANE_SNAPSHOT=YES FASTLANE_LANGUAGE=en-US #{env_args} " \
        "build test 2>&1 | xcpretty")
   end
 
