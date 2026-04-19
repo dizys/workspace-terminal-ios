@@ -82,6 +82,7 @@ private struct SettingsSheetView: View {
                     VStack(spacing: WTSpace.xl) {
                         AccountCard(store: store)
                         ThemePickerCard(selectedThemeID: $selectedThemeID)
+                        FontSizeCard()
                         SignOutCard(store: store)
                         Spacer(minLength: WTSpace.xl)
                     }
@@ -199,6 +200,42 @@ private struct SignOutCard: View {
 
 private extension StoredDeployment {
     var host: String { deployment.baseURL.host ?? deployment.displayName }
+}
+
+// MARK: - Font size
+
+private struct FontSizeCard: View {
+    @AppStorage("terminalFontSize") private var fontSize: Double = 14
+
+    var body: some View {
+        WTCard {
+            VStack(alignment: .leading, spacing: WTSpace.md) {
+                HStack {
+                    Text("Font Size")
+                        .font(WTFont.captionEmphasized)
+                        .foregroundStyle(WTColor.textTertiary)
+                        .textCase(.uppercase)
+                        .tracking(0.5)
+                    Spacer()
+                    Text("\(Int(fontSize))pt")
+                        .font(WTFont.monoSmall)
+                        .foregroundStyle(WTColor.textSecondary)
+                        .monospacedDigit()
+                }
+                Slider(value: $fontSize, in: 8...32, step: 1)
+                    .tint(WTColor.accent)
+                HStack {
+                    Text("A")
+                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .foregroundStyle(WTColor.textTertiary)
+                    Spacer()
+                    Text("A")
+                        .font(.system(size: 20, weight: .medium, design: .monospaced))
+                        .foregroundStyle(WTColor.textTertiary)
+                }
+            }
+        }
+    }
 }
 
 // MARK: - Theme picker

@@ -56,6 +56,12 @@ let project = Project(
                 ],
                 "ITSAppUsesNonExemptEncryption": false,
                 "UIUserInterfaceStyle": "Dark",
+                "UIAppFonts": [
+                    "JetBrainsMonoNerdFont-Regular.ttf",
+                    "JetBrainsMonoNerdFont-Bold.ttf",
+                    "JetBrainsMonoNerdFont-Italic.ttf",
+                    "JetBrainsMonoNerdFont-BoldItalic.ttf",
+                ],
                 "UIApplicationSceneManifest": [
                     "UIApplicationSupportsMultipleScenes": true,
                     "UISceneConfigurations": [:],

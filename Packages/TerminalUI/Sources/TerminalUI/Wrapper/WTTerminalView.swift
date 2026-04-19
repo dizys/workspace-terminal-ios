@@ -48,7 +48,14 @@ public struct WTTerminalView: UIViewRepresentable {
     }
 
     public func makeUIView(context: Context) -> TerminalView {
-        let view = TerminalView(frame: .zero, font: UIFont.monospacedSystemFont(ofSize: 14, weight: .regular))
+        let fontSize = CGFloat(context.coordinator.persistedFontSize)
+        let view = TerminalView(frame: .zero, font: WTFont_Terminal.regular(size: fontSize))
+        view.setFonts(
+            normal: WTFont_Terminal.regular(size: fontSize),
+            bold: WTFont_Terminal.bold(size: fontSize),
+            italic: WTFont_Terminal.italic(size: fontSize),
+            boldItalic: WTFont_Terminal.boldItalic(size: fontSize)
+        )
         view.terminalDelegate = context.coordinator
         theme.apply(to: view)
         // Forward iOS taps/scrolls to the host as xterm mouse events when the
@@ -252,7 +259,13 @@ public struct WTTerminalView: UIViewRepresentable {
             pinchRecognizer = pinch
             let saved = CGFloat(persistedFontSize)
             if abs(view.font.pointSize - saved) > 0.5 {
-                view.font = UIFont.monospacedSystemFont(ofSize: saved, weight: .regular)
+                view.font = WTFont_Terminal.regular(size: saved)
+                view.setFonts(
+                    normal: WTFont_Terminal.regular(size: saved),
+                    bold: WTFont_Terminal.bold(size: saved),
+                    italic: WTFont_Terminal.italic(size: saved),
+                    boldItalic: WTFont_Terminal.boldItalic(size: saved)
+                )
             }
         }
 
@@ -268,7 +281,13 @@ public struct WTTerminalView: UIViewRepresentable {
                 )
                 let rounded = (newSize * 2).rounded() / 2
                 if abs(view.font.pointSize - rounded) >= 0.5 {
-                    view.font = UIFont.monospacedSystemFont(ofSize: rounded, weight: .regular)
+                    view.font = WTFont_Terminal.regular(size: rounded)
+                    view.setFonts(
+                        normal: WTFont_Terminal.regular(size: rounded),
+                        bold: WTFont_Terminal.bold(size: rounded),
+                        italic: WTFont_Terminal.italic(size: rounded),
+                        boldItalic: WTFont_Terminal.boldItalic(size: rounded)
+                    )
                 }
             case .ended, .cancelled:
                 persistedFontSize = Double(view.font.pointSize)
