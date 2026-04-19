@@ -110,5 +110,15 @@ let project = Project(
             runAction: .runAction(configuration: .debug),
             archiveAction: .archiveAction(configuration: .release)
         ),
+        .scheme(
+            name: "WorkspaceTerminalUITests",
+            shared: true,
+            buildAction: .buildAction(targets: ["WorkspaceTerminal", "WorkspaceTerminalUITests"]),
+            testAction: .targets(
+                ["WorkspaceTerminalUITests"],
+                configuration: .debug
+            ),
+            runAction: .runAction(configuration: .debug)
+        ),
     ]
 )
