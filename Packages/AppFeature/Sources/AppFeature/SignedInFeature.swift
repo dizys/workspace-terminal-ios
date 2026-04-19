@@ -31,7 +31,15 @@ public struct SignedInFeature {
         /// Map of agent.id → number of cached live tabs. Used to badge
         /// agents in the workspace detail view.
         public var liveSessionsByAgent: [UUID: Int] {
-            Dictionary(uniqueKeysWithValues: activeTerminals.map { ($0.key, $0.value.tabs.count) })
+            Dictionary(uniqueKeysWithValues: activeTerminals.compactMap {
+                $0.value.tabs.isEmpty ? nil : ($0.key, $0.value.tabs.count)
+            })
+        }
+
+        /// Total active session count across all agents. Used to badge
+        /// workspaces in the list view.
+        public var totalActiveSessions: Int {
+            activeTerminals.values.reduce(0) { $0 + $1.tabs.count }
         }
     }
 

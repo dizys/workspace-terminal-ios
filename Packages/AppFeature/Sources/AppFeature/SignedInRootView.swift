@@ -21,7 +21,16 @@ public struct SignedInRootView: View {
 
     public var body: some View {
         NavigationSplitView {
-            WorkspaceListView(store: store.scope(state: \.workspaceList, action: \.workspaceList))
+            WorkspaceListView(
+                store: store.scope(state: \.workspaceList, action: \.workspaceList),
+                activeSessionCount: { workspace in
+                    workspace.latestBuild.resources
+                        .flatMap(\.agents)
+                        .reduce(0) { sum, agent in
+                            sum + (store.liveSessionsByAgent[agent.id] ?? 0)
+                        }
+                }
+            )
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
                         Button { store.send(.settingsButtonTapped) } label: {

@@ -6,9 +6,14 @@ import SwiftUI
 
 public struct WorkspaceListView: View {
     @Bindable public var store: StoreOf<WorkspaceListFeature>
+    private let activeSessionCount: (Workspace) -> Int
 
-    public init(store: StoreOf<WorkspaceListFeature>) {
+    public init(
+        store: StoreOf<WorkspaceListFeature>,
+        activeSessionCount: @escaping (Workspace) -> Int = { _ in 0 }
+    ) {
         self.store = store
+        self.activeSessionCount = activeSessionCount
     }
 
     public var body: some View {
@@ -66,7 +71,10 @@ public struct WorkspaceListView: View {
                 .listRowInsets(EdgeInsets())
             } else {
                 ForEach(store.workspaces) { workspace in
-                    WorkspaceCard(workspace: workspace)
+                    WorkspaceCard(
+                        workspace: workspace,
+                        activeSessionCount: activeSessionCount(workspace)
+                    )
                         .tag(workspace.id)
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
@@ -84,6 +92,7 @@ public struct WorkspaceListView: View {
 
 struct WorkspaceCard: View {
     let workspace: Workspace
+    var activeSessionCount: Int = 0
 
     var body: some View {
         WTCard {
@@ -95,6 +104,22 @@ struct WorkspaceCard: View {
                             .font(WTFont.headline)
                             .foregroundStyle(WTColor.textPrimary)
                             .lineLimit(1)
+                        if activeSessionCount > 0 {
+                            HStack(spacing: 4) {
+                                Circle()
+                                    .fill(WTColor.accent)
+                                    .frame(width: 6, height: 6)
+                                Text("\(activeSessionCount)")
+                                    .font(WTFont.caption)
+                                    .foregroundStyle(WTColor.accent)
+                                    .monospacedDigit()
+                            }
+                            .padding(.horizontal, WTSpace.sm)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule(style: .continuous).fill(WTColor.accentSoft)
+                            )
+                        }
                         Spacer(minLength: WTSpace.sm)
                         WTStatusPill(label: statusLabel, tone: statusTone)
                     }
