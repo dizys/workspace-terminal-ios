@@ -3,22 +3,25 @@ default_platform(:ios)
 platform :ios do
   desc "Capture App Store screenshots on all required device sizes"
   lane :screenshots do
-    capture_screenshots(
-      workspace: "WorkspaceTerminal.xcworkspace",
-      scheme: "WorkspaceTerminalUITests",
-      devices: [
-        "iPhone 17 Pro Max",
-        "iPhone 17 Pro",
-        "iPhone 17",
-        "iPad Pro 13-inch (M5)",
-      ],
-      ios_version: "26.3.1",
-      languages: ["en-US"],
-      output_directory: "./fastlane/screenshots",
-      clear_previous_screenshots: true,
-      override_status_bar: true,
-      dark_mode: true
-    )
+    # Fastlane's snapshot has a known bug with Xcode 26 beta where it strips
+    # the patch version (26.3 vs 26.3.1), causing xcodebuild to fail finding
+    # the simulator. Run xcodebuild test directly with the correct OS version.
+    devices = {
+      "iPhone 17 Pro Max" => "70ADA912-F3E9-4E70-9E85-D8902970E623",
+      "iPhone 17 Pro" => "2F186D7E-AAFE-4856-BFF7-086C05110BB5",
+      "iPhone 17" => "C38EC645-E384-45C6-9E79-A5F488EA0F98",
+      "iPad Pro 13-inch (M5)" => "63DC440F-3B70-4F92-896B-1436EF4CA818",
+    }
+
+    destinations = devices.values.map { |id| "-destination 'platform=iOS Simulator,id=#{id}'" }.join(" ")
+
+    sh("set -o pipefail && xcodebuild " \
+       "-workspace ../WorkspaceTerminal.xcworkspace " \
+       "-scheme WorkspaceTerminalUITests " \
+       "-derivedDataPath ../build " \
+       "#{destinations} " \
+       "FASTLANE_SNAPSHOT=YES FASTLANE_LANGUAGE=en-US " \
+       "build test 2>&1 | xcpretty")
   end
 
   desc "Build and upload to TestFlight"
