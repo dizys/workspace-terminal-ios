@@ -23,7 +23,7 @@ extension CoderAPIClientFactory: DependencyKey {
         LiveCoderAPIClient(
             deployment: deployment,
             tls: tls,
-            userAgent: CoderAPI.userAgent(appVersion: "0.1.0", build: "1"),
+            userAgent: CoderAPI.userAgent,
             tokenProvider: { nil }
         )
     }
@@ -44,7 +44,7 @@ extension DependencyValues {
 
 extension PasswordLogin: DependencyKey {
     public static let liveValue: PasswordLogin = .init(
-        userAgent: CoderAPI.userAgent(appVersion: "0.1.0", build: "1")
+        userAgent: CoderAPI.userAgent
     )
 
     public static let testValue: PasswordLogin = .init(
@@ -64,7 +64,7 @@ extension DependencyValues {
 
 extension TokenLogin: DependencyKey {
     public static let liveValue: TokenLogin = .init(
-        userAgent: CoderAPI.userAgent(appVersion: "0.1.0", build: "1")
+        userAgent: CoderAPI.userAgent
     )
 
     public static let testValue: TokenLogin = .init(
@@ -84,7 +84,7 @@ extension DependencyValues {
 
 extension OIDCFlow: DependencyKey {
     public static let liveValue: OIDCFlow = .init(
-        userAgent: CoderAPI.userAgent(appVersion: "0.1.0", build: "1"),
+        userAgent: CoderAPI.userAgent,
         session: UnimplementedAuthSession()
     )
 

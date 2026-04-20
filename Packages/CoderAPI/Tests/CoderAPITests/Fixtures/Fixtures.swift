@@ -8,7 +8,7 @@ enum Fixtures {
         username: "alice"
     )
 
-    static let userAgent = "WorkspaceTerminal/0.1.0 (1; iOS) CoderAPI/0.1.0"
+    static let userAgent = "WorkspaceTerminal/0.0.0 (0; iOS) CoderAPI/0.0.0"
 
     /// Build a `LiveCoderAPIClient` for tests, optionally with a stubbed
     /// session (for endpoint tests). Pass nothing for tests that don't hit

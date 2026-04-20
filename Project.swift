@@ -40,7 +40,7 @@ let project = Project(
             deploymentTargets: Constants.deploymentTarget,
             infoPlist: .extendingDefault(with: [
                 "CFBundleDisplayName": "Workspace Terminal",
-                "CFBundleShortVersionString": "0.1.0",
+                "CFBundleShortVersionString": "1.0.0",
                 "CFBundleVersion": "1",
                 "UILaunchScreen": [:],
                 "UISupportedInterfaceOrientations": [

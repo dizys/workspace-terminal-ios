@@ -42,9 +42,7 @@ struct WorkspaceTerminalApp: App {
         #endif
         _ = keychain
 
-        let appVersion = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "0.1.0"
-        let appBuild = (Bundle.main.infoDictionary?["CFBundleVersion"] as? String) ?? "1"
-        let userAgent = CoderAPI.userAgent(appVersion: appVersion, build: appBuild)
+        let userAgent = CoderAPI.userAgent
 
         let apiClientProvider = AuthenticatedAPIClientProvider { [deploymentStore, userAgent] in
             guard let stored = try? await deploymentStore.activeDeployment() else { return nil }

@@ -376,11 +376,7 @@ private struct ThemePreviewDots: View {
 // MARK: - About
 
 private struct AboutCard: View {
-    private let appVersion: String = {
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1.0"
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
-        return "\(version) (\(build))"
-    }()
+    private let appVersion = "\(CoderAPI.appVersion) (\(CoderAPI.appBuild))"
 
     var body: some View {
         WTCard {
@@ -413,6 +409,7 @@ private struct AboutCard: View {
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(WTColor.textTertiary)
                     }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 Divider().background(WTColor.border)
@@ -448,6 +445,7 @@ private struct AboutCard: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(WTColor.textTertiary)
             }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }

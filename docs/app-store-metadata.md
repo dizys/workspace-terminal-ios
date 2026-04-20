@@ -18,9 +18,8 @@ Coder's web terminal works, but it's not built for mobile. Workspace Terminal re
 
 **Terminal**
 • Real PTY-over-WebSocket terminal with full ANSI color support
-• SwiftTerm-powered emulator — the same engine used by Termius and other production terminal apps
+• SwiftTerm-powered emulator — the same engine used by other production terminal apps
 • JetBrains Mono Nerd Font with powerline glyph support for starship, oh-my-zsh, and p10k
-• Mouse mode forwarding — tap tmux tabs, scroll in vim, click links
 • Pinch-to-zoom font size (8–32pt, persisted)
 
 **Multi-Tab & Session Persistence**
@@ -35,7 +34,6 @@ Coder's web terminal works, but it's not built for mobile. Workspace Terminal re
 
 **Workspace Management**
 • Discover and manage Coder workspaces — start, stop, restart
-• See build logs in real-time
 • View listening ports on connected agents
 • Live session badges show active terminal connections
 
@@ -44,18 +42,12 @@ Coder's web terminal works, but it's not built for mobile. Workspace Terminal re
 • Session token stored securely in Keychain
 • Self-hosted Coder deployments fully supported
 
-**Built for iPad**
-• Split-view with NavigationSplitView — workspace list and terminal side by side
-• Multi-window support
-• Hardware keyboard shortcuts: Cmd+T (new tab), Cmd+W (close tab), Cmd+R (refresh), Cmd+, (settings)
-• Branded floating key bar with esc, ctrl, tab, arrows, and shell punctuation
-
 **Port Discovery**
-• Automatically discover services running inside your workspace
+• Automatically discover services running inside your workspace (requires coder server to configure custom proxy admin)
 • See port numbers, process names, and common port hints (React, Vite, Django, etc.)
 • Open forwarded ports in Safari via Coder's subdomain proxy
 
-Workspace Terminal is open source (AGPL-3.0) and connects only to your own Coder deployment. No data is collected, no accounts required beyond your Coder login.
+Workspace Terminal connects only to your own Coder deployment. No data is collected, no accounts required beyond your Coder login.
 
 ## Keywords (100 chars, comma-separated)
 terminal,coder,ssh,workspace,devops,remote,development,tmux,cli,cloud
