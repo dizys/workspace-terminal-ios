@@ -34,6 +34,7 @@ public struct TerminalSessionView: View {
                     },
                     onError: { msg in store.send(.errorRaised(msg)) },
                     isActive: isActive,
+                    isInputEnabled: store.connection == .connected,
                     theme: theme
                 )
             }

@@ -72,8 +72,14 @@ public actor LivePTYTransport: PTYTransport {
 
     public func connect() async throws {
         switch phase {
-        case .connected, .connecting:
+        case .connected:
             return // idempotent
+        case .connecting:
+            guard reconnectTask != nil else { return }
+            reconnectTask?.cancel()
+            reconnectTask = nil
+            try await openConnection(attempt: max(currentAttempt, 1))
+            return
         case .closing:
             throw PTYError.cancelled
         case .idle:
@@ -83,32 +89,39 @@ public actor LivePTYTransport: PTYTransport {
     }
 
     public func send(_ bytes: Data) async throws {
-        guard let task else { throw PTYError.cancelled }
-        let frame = ClientFrame.input(bytes)
-        let payload: Data
-        do {
-            payload = try frame.jsonData()
-        } catch {
-            throw PTYError.encodingFailed("\(error)")
-        }
-        try await task.send(.data(payload))
+        try await sendFrame(.input(bytes))
     }
 
     public func resize(_ size: TerminalSize) async throws {
+        try await sendFrame(.resize(size))
+    }
+
+    private func sendFrame(_ frame: ClientFrame) async throws {
         guard let task else { throw PTYError.cancelled }
-        let frame = ClientFrame.resize(size)
         let payload: Data
         do {
             payload = try frame.jsonData()
         } catch {
             throw PTYError.encodingFailed("\(error)")
         }
-        try await task.send(.data(payload))
+        do {
+            try await task.send(.data(payload))
+        } catch {
+            handleWriteError(error, on: task)
+            throw PTYError.closed(.serverTimeout)
+        }
     }
 
     public func checkAndReconnectIfNeeded() async {
         guard !isClosed else { return }
-        guard let task else { return }
+        guard let task else {
+            if reconnectTask != nil {
+                reconnectTask?.cancel()
+                reconnectTask = nil
+                try? await openConnection(attempt: max(currentAttempt, 1))
+            }
+            return
+        }
 
         // URLSessionWebSocketTask.state goes to .completed or .canceling
         // when the underlying TCP connection died while the app was suspended.
@@ -116,18 +129,11 @@ public actor LivePTYTransport: PTYTransport {
         // probe bytes can be echoed by the remote shell as literal text
         // (especially inside tmux with send-keys -M). Just check the state.
         let state = task.state
-        if state == .completed || state == .canceling {
-            self.task?.cancel(with: .abnormalClosure, reason: nil)
-            self.task = nil
-            session?.invalidateAndCancel()
-            session = nil
-            receiveLoop?.cancel()
-            receiveLoop = nil
+        if state == .completed || state == .canceling || state == .suspended {
             scheduleReconnect(after: .serverTimeout)
         }
-        // If state is .running or .suspended, the connection may still be
-        // alive. The receive loop will detect any actual close and trigger
-        // reconnect on its own when it resumes.
+        // If state is .running, the connection may still be alive. The receive
+        // loop will detect any actual close and trigger reconnect on its own.
     }
 
     public func close(_ reason: CloseReason) async {
@@ -225,6 +231,15 @@ public actor LivePTYTransport: PTYTransport {
         }
     }
 
+    private func handleWriteError(_ error: Error, on task: URLSessionWebSocketTask) {
+        guard self.task === task, !isClosed else { return }
+        if shouldReconnect(after: .serverTimeout) {
+            scheduleReconnect(after: .serverTimeout)
+        } else {
+            finishWithReason(.fatal(code: 0, reason: error.localizedDescription))
+        }
+    }
+
     /// Decide if a close warrants automatic reconnect with the same UUID
     /// (server still holds the ring buffer for ~5min).
     private func shouldReconnect(after reason: CloseReason) -> Bool {
@@ -240,6 +255,9 @@ public actor LivePTYTransport: PTYTransport {
     /// Any further failure flows back through `handleReceiveError` → recursion
     /// stops naturally when policy.maxAttempts is exhausted.
     private func scheduleReconnect(after reason: CloseReason) {
+        reconnectTask?.cancel()
+        reconnectTask = nil
+
         let nextAttempt = currentAttempt + 1
         let policy = config.reconnectPolicy
         if let max = policy.maxAttempts, nextAttempt > max {
@@ -256,6 +274,7 @@ public actor LivePTYTransport: PTYTransport {
         receiveLoop = nil
 
         phase = .connecting(attempt: nextAttempt)
+        currentAttempt = nextAttempt
         stateContinuation.yield(.reconnecting(attempt: nextAttempt, lastError: PTYError.closed(reason)))
 
         let delay = policy.delay(forAttempt: nextAttempt)

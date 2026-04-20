@@ -59,7 +59,7 @@ struct TerminalFeatureReducerTests {
             $0.connection = .reconnecting(attempt: 2)
         }
         await store.send(.stateChanged(.closed(.userInitiated))) {
-            $0.connection = .closed(reasonDescription: "userInitiated")
+            $0.connection = .closed(reasonDescription: "Terminal closed.")
         }
     }
 

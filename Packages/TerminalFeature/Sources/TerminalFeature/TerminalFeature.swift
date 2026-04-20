@@ -174,11 +174,16 @@ public struct TerminalFeature {
 
     private func describe(_ reason: CloseReason) -> String {
         switch reason {
-        case .userInitiated:                                    return "userInitiated"
-        case let .agentUnreachable(detail):                     return "agentUnreachable: \(detail)"
-        case .authExpired:                                      return "authExpired"
-        case .serverTimeout:                                    return "serverTimeout"
-        case let .fatal(code, message):                         return "fatal(\(code)): \(message)"
+        case .userInitiated:
+            return "Terminal closed."
+        case let .agentUnreachable(detail):
+            return "The workspace agent is unreachable. \(detail)"
+        case .authExpired:
+            return "Your Coder session expired. Sign in again."
+        case .serverTimeout:
+            return "This terminal session expired while the app was away."
+        case let .fatal(code, message):
+            return "Connection failed (\(code)): \(message)"
         }
     }
 }

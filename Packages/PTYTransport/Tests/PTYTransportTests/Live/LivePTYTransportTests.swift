@@ -113,6 +113,90 @@ struct LivePTYTransportTests {
         #expect(second == Data("SECOND".utf8))
     }
 
+    @Test("connect() collapses pending reconnect backoff and reconnects immediately")
+    func connectCollapsesPendingReconnectBackoff() async throws {
+        let server = try EchoPTYServer()
+        let serverURL = try await server.start()
+        defer { server.stop() }
+
+        var rootComponents = URLComponents(url: serverURL, resolvingAgainstBaseURL: false)!
+        rootComponents.path = ""
+        rootComponents.queryItems = nil
+        let deployment = Deployment(baseURL: rootComponents.url!, displayName: "echo")
+
+        server.scripts([
+            [.send(Data("FIRST".utf8)), .close(code: 1001, reason: "Ping failed")],
+            [.send(Data("SECOND".utf8)), .close(code: 1000, reason: "")],
+        ])
+
+        let transport = LivePTYTransport(
+            deployment: deployment,
+            tls: .default,
+            config: PTYTransportConfig(
+                agentID: UUID(),
+                reconnectToken: UUID(),
+                initialSize: TerminalSize(rows: 24, cols: 80),
+                command: "",
+                reconnectPolicy: ReconnectPolicy(
+                    baseDelay: 30, maxDelay: 30, maxAttempts: 3, jitter: 1.0...1.0
+                )
+            ),
+            tokenProvider: { SessionToken("test-token-XXXXXXXXXXXXXXXXXXXX") }
+        )
+
+        try await transport.connect()
+        var inbound = transport.inbound.makeAsyncIterator()
+        #expect(try await inbound.next() == Data("FIRST".utf8))
+        try await Task.sleep(nanoseconds: 200_000_000)
+        #expect(server.recordingSnapshot().connectionCount == 1)
+
+        try await transport.connect()
+        try await Task.sleep(nanoseconds: 200_000_000)
+        #expect(server.recordingSnapshot().connectionCount == 2)
+    }
+
+    @Test("foreground recovery collapses pending reconnect backoff")
+    func foregroundRecoveryCollapsesPendingReconnectBackoff() async throws {
+        let server = try EchoPTYServer()
+        let serverURL = try await server.start()
+        defer { server.stop() }
+
+        var rootComponents = URLComponents(url: serverURL, resolvingAgainstBaseURL: false)!
+        rootComponents.path = ""
+        rootComponents.queryItems = nil
+        let deployment = Deployment(baseURL: rootComponents.url!, displayName: "echo")
+
+        server.scripts([
+            [.send(Data("FIRST".utf8)), .close(code: 1001, reason: "Ping failed")],
+            [.send(Data("SECOND".utf8)), .close(code: 1000, reason: "")],
+        ])
+
+        let transport = LivePTYTransport(
+            deployment: deployment,
+            tls: .default,
+            config: PTYTransportConfig(
+                agentID: UUID(),
+                reconnectToken: UUID(),
+                initialSize: TerminalSize(rows: 24, cols: 80),
+                command: "",
+                reconnectPolicy: ReconnectPolicy(
+                    baseDelay: 30, maxDelay: 30, maxAttempts: 3, jitter: 1.0...1.0
+                )
+            ),
+            tokenProvider: { SessionToken("test-token-XXXXXXXXXXXXXXXXXXXX") }
+        )
+
+        try await transport.connect()
+        var inbound = transport.inbound.makeAsyncIterator()
+        #expect(try await inbound.next() == Data("FIRST".utf8))
+        try await Task.sleep(nanoseconds: 200_000_000)
+        #expect(server.recordingSnapshot().connectionCount == 1)
+
+        await transport.checkAndReconnectIfNeeded()
+        try await Task.sleep(nanoseconds: 200_000_000)
+        #expect(server.recordingSnapshot().connectionCount == 2)
+    }
+
     @Test("agent unreachable (1011 dial …) → no reconnect; stream finishes with .agentUnreachable")
     func doesNotReconnectOnAgentUnreachable() async throws {
         let server = try EchoPTYServer()

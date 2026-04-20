@@ -39,6 +39,7 @@ final class EchoPTYServer: @unchecked Sendable {
     struct Recording: Sendable {
         var receivedFrames: [Data] = []
         var clientConnected: Bool = false
+        var connectionCount: Int = 0
     }
 
     private let listener: NWListener
@@ -152,6 +153,7 @@ final class EchoPTYServer: @unchecked Sendable {
                     // Pull this connection's script from the queue.
                     let idx = self.connectionCount
                     self.connectionCount += 1
+                    self.recording.connectionCount = self.connectionCount
                     self.script = idx < self.scriptQueue.count ? self.scriptQueue[idx] : []
                     self.scriptIndex = 0
                     if let cont = self.clientReadyContinuation {

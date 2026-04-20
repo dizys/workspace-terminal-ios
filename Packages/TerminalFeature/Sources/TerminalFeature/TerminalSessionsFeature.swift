@@ -31,6 +31,7 @@ public struct TerminalSessionsFeature {
     public enum Action: Equatable, Sendable {
         case onAppear
         case addTabTapped
+        case restartTabTapped(TerminalFeature.State.ID)
         case closeTabTapped(TerminalFeature.State.ID)
         case selectTab(TerminalFeature.State.ID?)
         case tabs(IdentifiedActionOf<TerminalFeature>)
@@ -57,6 +58,26 @@ public struct TerminalSessionsFeature {
                 state.tabs.append(tab)
                 state.selectedID = tab.sessionID
                 return .none
+
+            case let .restartTabTapped(id):
+                guard let index = state.tabs.index(id: id) else { return .none }
+                let size = state.tabs[index].size
+                let replacement = TerminalFeature.State(
+                    agent: state.agent,
+                    deployment: state.deployment,
+                    size: size
+                )
+                state.tabs.remove(id: id)
+                state.tabs.insert(replacement, at: min(index, state.tabs.count))
+                state.selectedID = replacement.sessionID
+
+                let store = sessionStore
+                return .run { _ in
+                    if let session = await store.session(for: id) {
+                        await session.close(.userInitiated)
+                    }
+                    await store.detach(id: id)
+                }
 
             case let .closeTabTapped(id):
                 guard let index = state.tabs.index(id: id) else { return .none }
@@ -90,12 +111,6 @@ public struct TerminalSessionsFeature {
             case let .selectTab(id):
                 state.selectedID = id
                 return .none
-
-            case let .tabs(.element(id: tabID, action: .stateChanged(.closed))):
-                // Any terminal close (shell exit, fatal, agent unreachable,
-                // server timeout post-exhaustion) auto-closes the tab.
-                guard state.tabs[id: tabID] != nil else { return .none }
-                return .send(.closeTabTapped(tabID))
 
             case .tabs:
                 return .none

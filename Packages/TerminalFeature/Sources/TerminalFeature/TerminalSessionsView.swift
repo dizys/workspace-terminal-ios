@@ -96,26 +96,92 @@ public struct TerminalSessionsView: View {
     // MARK: - Pager
 
     private var terminalPager: some View {
-        TabView(selection: $store.selectedID.sending(\.selectTab)) {
-            ForEach(
-                store.scope(state: \.tabs, action: \.tabs)
-            ) { tabStore in
-                TerminalSessionView(
-                    store: tabStore,
-                    isActive: store.selectedID == tabStore.sessionID
+        ZStack {
+            TabView(selection: $store.selectedID.sending(\.selectTab)) {
+                ForEach(
+                    store.scope(state: \.tabs, action: \.tabs)
+                ) { tabStore in
+                    TerminalSessionView(
+                        store: tabStore,
+                        isActive: store.selectedID == tabStore.sessionID
+                    )
+                    .tag(Optional(tabStore.sessionID))
+                }
+            }
+            // No bottom dot indicator — it overlapped TUI bottom bars (nano, etc).
+            // Tab discovery + selection lives in the toolbar popover instead.
+            .tabViewStyle(.page(indexDisplayMode: .never))
+
+            if let closedTab {
+                ClosedSessionOverlay(
+                    reason: closedTab.reason,
+                    onRestart: { store.send(.restartTabTapped(closedTab.id)) },
+                    onClose: { store.send(.closeTabTapped(closedTab.id)) }
                 )
-                .tag(Optional(tabStore.sessionID))
             }
         }
-        // No bottom dot indicator — it overlapped TUI bottom bars (nano, etc).
-        // Tab discovery + selection lives in the toolbar popover instead.
-        .tabViewStyle(.page(indexDisplayMode: .never))
     }
 
     private var currentTabIndex: Int {
         guard let id = store.selectedID,
               let idx = store.tabs.index(id: id) else { return 0 }
         return idx
+    }
+
+    private var closedTab: (id: TerminalFeature.State.ID, reason: String)? {
+        guard let id = store.selectedID,
+              let tab = store.tabs[id: id],
+              case let .closed(reason) = tab.connection else { return nil }
+        return (id, reason)
+    }
+}
+
+private struct ClosedSessionOverlay: View {
+    let reason: String
+    let onRestart: () -> Void
+    let onClose: () -> Void
+
+    var body: some View {
+        VStack(spacing: WTSpace.lg) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 32, weight: .semibold))
+                .foregroundStyle(WTColor.statusWarning)
+
+            VStack(spacing: WTSpace.sm) {
+                Text("Terminal session ended")
+                    .font(WTFont.title)
+                    .foregroundStyle(WTColor.textPrimary)
+                    .multilineTextAlignment(.center)
+                Text(reason)
+                    .font(WTFont.body)
+                    .foregroundStyle(WTColor.textSecondary)
+                    .multilineTextAlignment(.center)
+                Text("Start a new terminal to continue working in this workspace.")
+                    .font(WTFont.body)
+                    .foregroundStyle(WTColor.textTertiary)
+                    .multilineTextAlignment(.center)
+            }
+
+            HStack(spacing: WTSpace.sm) {
+                Button("Close", action: onClose)
+                    .buttonStyle(.bordered)
+                Button("Start new terminal", action: onRestart)
+                    .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(WTSpace.xxl)
+        .frame(maxWidth: 420)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(WTColor.surface)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(WTColor.border, lineWidth: 1)
+                )
+        )
+        .padding(WTSpace.xxl)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(WTColor.background.opacity(0.88).ignoresSafeArea())
     }
 }
 

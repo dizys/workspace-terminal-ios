@@ -53,7 +53,8 @@ public protocol PTYTransport: Sendable {
     /// the stale socket and reconnect with the same UUID. Call this on app
     /// foreground — iOS suspends WebSocket tasks in the background, so the
     /// server may have closed them (15s ping timeout) without our receive
-    /// loop noticing.
+    /// loop noticing. Implementations should also collapse any pending
+    /// reconnect backoff so foreground recovery starts immediately.
     func checkAndReconnectIfNeeded() async
 }
 

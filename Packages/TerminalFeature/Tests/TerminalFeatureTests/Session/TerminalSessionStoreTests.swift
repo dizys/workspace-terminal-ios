@@ -1,4 +1,6 @@
+import CoderAPI
 import Foundation
+import PTYTransport
 import Testing
 @testable import TerminalFeature
 
@@ -46,6 +48,24 @@ struct TerminalSessionStoreTests {
         let retrieved = await store.session(for: id)
         #expect(retrieved === second)
     }
+
+    @Test("TerminalSession state stream replays latest state to new subscribers")
+    func sessionStateReplaysLatestToNewSubscribers() async throws {
+        let transport = MockPTYTransport()
+        let session = TerminalSession(id: UUID(), agent: .testAgent, transport: transport)
+        defer {
+            Task { await session.close(.userInitiated) }
+        }
+
+        var first = session.state.makeAsyncIterator()
+        #expect(await first.next() == .idle)
+
+        transport.simulateState(.connected)
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        var second = session.state.makeAsyncIterator()
+        #expect(await second.next() == .connected)
+    }
 }
 
 private extension TerminalSession {
@@ -54,4 +74,14 @@ private extension TerminalSession {
         // Using PTYTransport.MockPTYTransport directly avoids any real network.
         TerminalSession.makeForTesting()
     }
+}
+
+private extension WorkspaceAgent {
+    static let testAgent = WorkspaceAgent(
+        id: UUID(),
+        name: "test",
+        status: .connected,
+        createdAt: Date(),
+        updatedAt: Date()
+    )
 }

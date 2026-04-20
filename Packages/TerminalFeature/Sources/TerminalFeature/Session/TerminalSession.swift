@@ -24,6 +24,8 @@ public final class TerminalSession: @unchecked Sendable {
     /// it across `await`).
     private struct LockedState {
         var subscribers: [UUID: AsyncStream<Data>.Continuation] = [:]
+        var stateSubscribers: [UUID: AsyncStream<ConnectionState>.Continuation] = [:]
+        var latestConnectionState: ConnectionState = .idle
         /// Ring buffer of recent PTY bytes — replayed to any new subscriber so
         /// re-mounting the terminal view (e.g. after navigating back) shows
         /// the existing scrollback instead of starting blank. 64 KiB matches
@@ -33,6 +35,7 @@ public final class TerminalSession: @unchecked Sendable {
     private static let scrollbackCap = 64 * 1024
     private let locked = OSAllocatedUnfairLock<LockedState>(initialState: LockedState())
     private var pumpTask: Task<Void, Never>?
+    private var statePumpTask: Task<Void, Never>?
     private var foregroundObserver: NSObjectProtocol?
 
     public init(id: UUID, agent: WorkspaceAgent, transport: any PTYTransport) {
@@ -40,11 +43,13 @@ public final class TerminalSession: @unchecked Sendable {
         self.agent = agent
         self.transport = transport
         startPump()
+        startStatePump()
         observeForeground()
     }
 
     deinit {
         pumpTask?.cancel()
+        statePumpTask?.cancel()
         foregroundObserver.map { NotificationCenter.default.removeObserver($0) }
     }
 
@@ -65,7 +70,7 @@ public final class TerminalSession: @unchecked Sendable {
                 continuation.yield(replay)
             }
             continuation.onTermination = { [weak self] _ in
-                self?.locked.withLock { $0.subscribers.removeValue(forKey: key) }
+                _ = self?.locked.withLock { $0.subscribers.removeValue(forKey: key) }
             }
         }
     }
@@ -74,7 +79,19 @@ public final class TerminalSession: @unchecked Sendable {
         locked.withLock { $0.scrollback = Data() }
     }
 
-    public var state: AsyncStream<ConnectionState> { transport.state }
+    public var state: AsyncStream<ConnectionState> {
+        let key = UUID()
+        return AsyncStream { continuation in
+            let latest: ConnectionState = locked.withLock { state in
+                state.stateSubscribers[key] = continuation
+                return state.latestConnectionState
+            }
+            continuation.yield(latest)
+            continuation.onTermination = { [weak self] _ in
+                _ = self?.locked.withLock { $0.stateSubscribers.removeValue(forKey: key) }
+            }
+        }
+    }
 
     public func connect() async throws { try await transport.connect() }
     public func send(_ bytes: Data) async throws { try await transport.send(bytes) }
@@ -82,6 +99,9 @@ public final class TerminalSession: @unchecked Sendable {
     public func close(_ reason: CloseReason = .userInitiated) async {
         await transport.close(reason)
         pumpTask?.cancel()
+        statePumpTask?.cancel()
+        finishAllSubscribers()
+        finishAllStateSubscribers()
     }
 
     private func startPump() {
@@ -97,6 +117,17 @@ public final class TerminalSession: @unchecked Sendable {
                 return
             }
             self?.finishAllSubscribers()
+        }
+    }
+
+    private func startStatePump() {
+        let upstream = transport.state
+        statePumpTask = Task { [weak self] in
+            for await state in upstream {
+                if Task.isCancelled { return }
+                self?.broadcast(state)
+            }
+            self?.finishAllStateSubscribers()
         }
     }
 
@@ -122,6 +153,23 @@ public final class TerminalSession: @unchecked Sendable {
         for cont in conts { cont.finish() }
     }
 
+    private func broadcast(_ connectionState: ConnectionState) {
+        let conts: [AsyncStream<ConnectionState>.Continuation] = locked.withLock { state in
+            state.latestConnectionState = connectionState
+            return Array(state.stateSubscribers.values)
+        }
+        for cont in conts { cont.yield(connectionState) }
+    }
+
+    private func finishAllStateSubscribers() {
+        let conts: [AsyncStream<ConnectionState>.Continuation] = locked.withLock { state in
+            let conts = Array(state.stateSubscribers.values)
+            state.stateSubscribers.removeAll()
+            return conts
+        }
+        for cont in conts { cont.finish() }
+    }
+
     /// On app foreground, proactively check if the WS is still alive.
     /// iOS suspends WebSocket tasks in the background; the server closes
     /// after 15s of missed pings. Without this, the receive loop stays
@@ -135,11 +183,6 @@ public final class TerminalSession: @unchecked Sendable {
             queue: .main
         ) { [weak self] _ in
             guard let self else { return }
-            // Clear the scrollback buffer on foreground — if we reconnect,
-            // the server replays its own ring buffer. Our local scrollback
-            // may contain stale bytes (e.g. mouse-event escape sequences
-            // that were echoed as text by a half-dead connection).
-            self.locked.withLock { $0.scrollback = Data() }
             Task {
                 await self.transport.checkAndReconnectIfNeeded()
             }

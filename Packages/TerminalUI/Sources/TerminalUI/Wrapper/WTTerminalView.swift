@@ -25,6 +25,10 @@ public struct WTTerminalView: UIViewRepresentable {
     /// TabView in TerminalSessionsView) flips this to true for the
     /// currently-selected tab so the view can claim first-responder status.
     private let isActive: Bool
+    /// Matches Coder web's `disableStdin` behavior: input is accepted only
+    /// while the PTY WebSocket is open. We drop keys during reconnect instead
+    /// of buffering them against an unknown prompt state.
+    private let isInputEnabled: Bool
     private let theme: TerminalTheme
 
     public init(
@@ -33,6 +37,7 @@ public struct WTTerminalView: UIViewRepresentable {
         onResize: @escaping @Sendable (Int, Int) -> Void = { _, _ in },
         onError: @escaping @Sendable (String) -> Void = { _ in },
         isActive: Bool = true,
+        isInputEnabled: Bool = true,
         theme: TerminalTheme = .default
     ) {
         self.inbound = inbound
@@ -40,6 +45,7 @@ public struct WTTerminalView: UIViewRepresentable {
         self.onResize = onResize
         self.onError = onError
         self.isActive = isActive
+        self.isInputEnabled = isInputEnabled
         self.theme = theme
     }
 
@@ -86,10 +92,12 @@ public struct WTTerminalView: UIViewRepresentable {
         context.coordinator.installPinchZoom(on: view)
 
         context.coordinator.attach(view: view, inbound: inbound())
+        context.coordinator.setInputEnabled(isInputEnabled)
         return view
     }
 
     public func updateUIView(_ uiView: TerminalView, context: Context) {
+        context.coordinator.setInputEnabled(isInputEnabled)
         context.coordinator.applyFocusIfActive(uiView, isActive: isActive)
         context.coordinator.clampSwiftTermPanRecognizers(on: uiView)
         // Re-apply theme if it changed (e.g. user picked a new theme in settings).
@@ -107,6 +115,7 @@ public struct WTTerminalView: UIViewRepresentable {
         private let onError: @Sendable (String) -> Void
         private weak var view: TerminalView?
         private var pumpTask: Task<Void, Never>?
+        private var activationObserver: NSObjectProtocol?
         /// Gate outbound bytes during the initial handshake. SwiftTerm
         /// responds to DA1/DA2 queries from the server automatically; those
         /// responses must NOT be forwarded to the PTY because by the time
@@ -114,6 +123,7 @@ public struct WTTerminalView: UIViewRepresentable {
         /// keyboard input. We suppress sends for the first ~500ms after
         /// the inbound pump starts.
         private var suppressSendUntil: Date = .distantFuture
+        private var isInputEnabled = true
 
         init(
             onSend: @escaping @Sendable (Data) -> Void,
@@ -127,6 +137,7 @@ public struct WTTerminalView: UIViewRepresentable {
 
         func attach(view: TerminalView, inbound: AsyncThrowingStream<Data, Error>) {
             self.view = view
+            installActivationObserver()
             // Suppress DA1/DA2 response forwarding for the first 500ms.
             suppressSendUntil = Date().addingTimeInterval(0.5)
             pumpTask?.cancel()
@@ -157,12 +168,23 @@ public struct WTTerminalView: UIViewRepresentable {
         func dismantle() {
             pumpTask?.cancel()
             pumpTask = nil
+            focusTask?.cancel()
+            focusTask = nil
+            if let activationObserver {
+                NotificationCenter.default.removeObserver(activationObserver)
+                self.activationObserver = nil
+            }
             view = nil
+        }
+
+        func setInputEnabled(_ enabled: Bool) {
+            isInputEnabled = enabled
         }
 
         // Bridges from the delegate-conformance extension into the Coordinator's
         // private callback closures.
         fileprivate func forwardSend(data: ArraySlice<UInt8>) {
+            guard isInputEnabled else { return }
             // Suppress SwiftTerm's automatic DA1/DA2/DA3 responses during
             // the initial handshake window. These responses contain escape
             // sequences like ESC[?65;4;1;2;6;21;22;17;28c that the shell
@@ -178,6 +200,7 @@ public struct WTTerminalView: UIViewRepresentable {
 
         // MARK: - Auto-focus
 
+        private var currentIsActive: Bool = false
         private var lastIsActive: Bool = false
         private var lastThemeID: String?
         private var focusTask: Task<Void, Never>?
@@ -188,25 +211,52 @@ public struct WTTerminalView: UIViewRepresentable {
         /// TerminalSessionsView leaves the previously-focused tab frozen
         /// (only one UIView can be first responder at a time).
         func applyFocusIfActive(_ view: TerminalView, isActive: Bool) {
+            currentIsActive = isActive
             // Only act on transitions to avoid fighting user-driven keyboard
             // dismissal during a single active session.
             guard isActive != lastIsActive else { return }
             lastIsActive = isActive
 
             if isActive {
-                focusTask?.cancel()
-                focusTask = Task { @MainActor [weak view] in
-                    for _ in 0..<30 { // up to ~1.5s for window-attach
-                        guard let view else { return }
-                        if view.window != nil {
-                            _ = view.becomeFirstResponder()
-                            return
-                        }
-                        try? await Task.sleep(nanoseconds: 50_000_000)
-                    }
-                }
+                scheduleFocus(on: view)
             } else if view.isFirstResponder {
                 _ = view.resignFirstResponder()
+            }
+        }
+
+        private func installActivationObserver() {
+            #if os(iOS)
+            guard activationObserver == nil else { return }
+            activationObserver = NotificationCenter.default.addObserver(
+                forName: UIApplication.didBecomeActiveNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.refocusAfterActivation()
+                }
+            }
+            #endif
+        }
+
+        private func refocusAfterActivation() {
+            guard currentIsActive, let view else { return }
+            scheduleFocus(on: view)
+        }
+
+        private func scheduleFocus(on view: TerminalView) {
+            focusTask?.cancel()
+            focusTask = Task { @MainActor [weak view] in
+                for _ in 0..<30 { // up to ~1.5s for window-attach
+                    guard let view else { return }
+                    if view.window != nil {
+                        if !view.isFirstResponder {
+                            _ = view.becomeFirstResponder()
+                        }
+                        return
+                    }
+                    try? await Task.sleep(nanoseconds: 50_000_000)
+                }
             }
         }
 

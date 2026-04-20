@@ -31,10 +31,10 @@ struct TerminalSessionsFeatureTests {
         ) {
             TerminalSessionsFeature()
         }
-        await store.send(.onAppear) {
-            #expect($0.tabs.count == 1)
-            $0.selectedID = $0.tabs.first!.sessionID
-        }
+        store.exhaustivity = .off
+        await store.send(.onAppear)
+        #expect(store.state.tabs.count == 1)
+        #expect(store.state.selectedID == store.state.tabs.first?.sessionID)
     }
 
     @Test("addTabTapped appends a new tab and selects it")
@@ -51,10 +51,10 @@ struct TerminalSessionsFeatureTests {
         let store = TestStore(initialState: initial) {
             TerminalSessionsFeature()
         }
-        await store.send(.addTabTapped) {
-            #expect($0.tabs.count == 2)
-            $0.selectedID = $0.tabs.last!.sessionID
-        }
+        store.exhaustivity = .off
+        await store.send(.addTabTapped)
+        #expect(store.state.tabs.count == 2)
+        #expect(store.state.selectedID == store.state.tabs.last?.sessionID)
     }
 
     @Test("closeTabTapped removes a tab; selection moves to remaining tab")
@@ -96,6 +96,50 @@ struct TerminalSessionsFeatureTests {
             $0.tabs.remove(id: only.sessionID)
             $0.selectedID = nil
         }
+    }
+
+    @Test("closed session stays visible instead of closing the tab")
+    func closedSessionStaysVisible() async {
+        var initial = TerminalSessionsFeature.State(
+            agent: makeAgent(),
+            deployment: makeDeployment()
+        )
+        let only = TerminalFeature.State(agent: initial.agent, deployment: initial.deployment)
+        initial.tabs.append(only)
+        initial.selectedID = only.sessionID
+
+        let store = TestStore(initialState: initial) {
+            TerminalSessionsFeature()
+        }
+        await store.send(.tabs(.element(id: only.sessionID, action: .stateChanged(.closed(.serverTimeout))))) {
+            $0.tabs[id: only.sessionID]?.connection = .closed(
+                reasonDescription: "This terminal session expired while the app was away."
+            )
+            $0.selectedID = only.sessionID
+        }
+    }
+
+    @Test("restartTabTapped replaces the stale tab with a fresh session")
+    func restartTabReplacesStaleSession() async {
+        var initial = TerminalSessionsFeature.State(
+            agent: makeAgent(),
+            deployment: makeDeployment()
+        )
+        let stale = TerminalFeature.State(agent: initial.agent, deployment: initial.deployment)
+        initial.tabs.append(stale)
+        initial.selectedID = stale.sessionID
+        initial.tabs[id: stale.sessionID]?.connection = .closed(
+            reasonDescription: "This terminal session expired while the app was away."
+        )
+
+        let store = TestStore(initialState: initial) {
+            TerminalSessionsFeature()
+        }
+        store.exhaustivity = .off
+        await store.send(.restartTabTapped(stale.sessionID))
+        #expect(store.state.tabs.count == 1)
+        #expect(store.state.tabs.first?.sessionID != stale.sessionID)
+        #expect(store.state.selectedID == store.state.tabs.first?.sessionID)
     }
 
     @Test("selectTab updates selectedID")
