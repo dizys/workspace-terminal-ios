@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Privacy Policy | Workspace Terminal</title>
+    <meta name="description" content="Workspace Terminal privacy policy.">
+    <link rel="canonical" href="https://workspaceterminal.app/privacy/">
+    <meta property="og:title" content="Privacy Policy | Workspace Terminal">
+    <meta property="og:description" content="Workspace Terminal does not collect analytics or terminal contents.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://workspaceterminal.app/privacy/">
+    <meta name="theme-color" content="#060a06">
+    <link rel="icon" href="/assets/app-icon.png">
+    <link rel="apple-touch-icon" href="/assets/app-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+    <link rel="stylesheet" href="/assets/site.css">
+  </head>
+  <body class="policy-page">
+    <header class="site-header" aria-label="Primary">
+      <a class="brand" href="/" aria-label="Workspace Terminal home">
+        <img src="/assets/app-icon.png" width="36" height="36" alt="">
+        <span>Workspace Terminal</span>
+      </a>
+      <nav aria-label="Site">
+        <a href="/">Home</a>
+        <a href="https://github.com/dizys/workspace-terminal-ios/issues">Support</a>
+      </nav>
+    </header>
+
+    <main class="policy-shell">
+      <article class="policy">
+        <p class="eyebrow">Privacy Policy</p>
+        <h1>Workspace Terminal Privacy Policy</h1>
+        <p class="lede">Last updated: April 20, 2026</p>
+
+        <h2>Overview</h2>
+        <p>Workspace Terminal is a native iOS and iPadOS client for Coder workspaces. The app connects directly from your device to the Coder deployment URL you enter. We do not operate a hosted Workspace Terminal account service, and the app does not collect analytics or track you.</p>
+
+        <h2>Data The App Stores On Your Device</h2>
+        <p>When you sign in, Workspace Terminal stores the deployment URL, session token, selected active deployment, trusted certificate settings, and app preferences on your device. Session tokens and deployment records are stored in the iOS Keychain. App preferences are stored locally on the device.</p>
+        <p>Terminal contents are not stored by Workspace Terminal as analytics data. Local diagnostic logs are designed to redact tokens, OAuth codes, full URLs beyond the host, and terminal contents.</p>
+
+        <h2>Data Sent To Your Coder Deployment</h2>
+        <p>The app sends requests to the Coder deployment you configure so it can authenticate, list workspaces, manage workspace lifecycle actions, connect terminal sessions, read build logs, and discover forwarded ports. Your deployment may process account, workspace, terminal, and network data according to its own policies and configuration.</p>
+
+        <h2>Data We Collect</h2>
+        <p>Workspace Terminal does not collect personal data, usage analytics, advertising identifiers, or terminal contents by default. We do not sell data and do not use third-party advertising SDKs.</p>
+        <p>If a future diagnostics feature lets you configure a crash-reporting endpoint, diagnostics will only be sent when you enable it and choose the endpoint. No crash-reporting endpoint is enabled by default.</p>
+
+        <h2>Third Parties</h2>
+        <p>Apple may process information related to App Store downloads, purchases, TestFlight, crash reports, and device diagnostics under Apple's policies. Coder deployments, identity providers, and GitHub support pages are separate services with their own privacy practices.</p>
+
+        <h2>Retention And Deletion</h2>
+        <p>Data stored by Workspace Terminal remains on your device until you remove it. Signing out removes the saved deployment session token for that deployment. Deleting the app removes app container data from the device. To delete data held by your Coder deployment, contact the administrator of that deployment.</p>
+
+        <h2>Security</h2>
+        <p>Workspace Terminal requires HTTPS for network connections by default, stores session tokens in the iOS Keychain, supports self-hosted deployments, and keeps terminal bytes out of diagnostic logs. Optional security controls may include biometric app access, custom certificate trust, and screen privacy protections.</p>
+
+        <h2>Children</h2>
+        <p>Workspace Terminal is a developer tool and is not directed to children. The app does not knowingly collect personal information from children.</p>
+
+        <h2>Changes</h2>
+        <p>We may update this policy as the app changes. Material changes will be reflected on this page with a new updated date.</p>
+
+        <h2>Contact</h2>
+        <p>For support or privacy questions, use the Workspace Terminal support tracker at <a href="https://github.com/dizys/workspace-terminal-ios/issues">github.com/dizys/workspace-terminal-ios/issues</a>. Do not include secrets, tokens, terminal output, or private deployment details in public issues.</p>
+      </article>
+    </main>
+
+    <footer class="site-footer">
+      <span>Workspace Terminal is an unofficial third-party app and is not affiliated with Coder Technologies, Inc.</span>
+      <nav aria-label="Footer">
+        <a href="/">Home</a>
+        <a href="https://github.com/dizys/workspace-terminal-ios">GitHub</a>
+      </nav>
+    </footer>
+  </body>
+</html>

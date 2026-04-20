@@ -2,6 +2,11 @@
 
 Native iOS/iPadOS app for [Coder](https://github.com/coder/coder) workspaces. First-class terminal experience: full ANSI/Unicode rendering, special keys, touch-native gestures, devcontainer support.
 
+This directory also doubles as the GitHub Pages source for `workspaceterminal.app`.
+
+- [Landing page](index.html)
+- [Privacy policy](privacy/index.html)
+
 ## Index
 
 - [Vision & Product Pillars](vision.md) — what we're building and why

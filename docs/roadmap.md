@@ -93,7 +93,7 @@
 **Goal:** v1.0 on App Store.
 
 - App Store submission (likely 1–3 review rounds)
-- Marketing site at `workspaceterminal.app` (Astro static, Cloudflare Pages)
+- Marketing site at `workspaceterminal.app` (static GitHub Pages from `docs/`)
 - Support email + privacy policy hosted
 - Public issues repo on GitHub: `workspaceterminal-issues`
 - Launch announcement: Coder Discord, Hacker News, dev Twitter

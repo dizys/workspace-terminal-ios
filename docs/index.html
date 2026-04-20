@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Workspace Terminal for iOS</title>
+    <meta name="description" content="A native iPhone and iPad terminal for Coder workspaces with mobile-first keys, reconnecting sessions, and zero telemetry by default.">
+    <link rel="canonical" href="https://workspaceterminal.app/">
+    <meta property="og:title" content="Workspace Terminal for iOS">
+    <meta property="og:description" content="A native terminal for Coder workspaces on iPhone and iPad.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://workspaceterminal.app/">
+    <meta property="og:image" content="https://workspaceterminal.app/assets/app-icon.png">
+    <meta name="theme-color" content="#060a06">
+    <link rel="icon" href="/assets/app-icon.png">
+    <link rel="apple-touch-icon" href="/assets/app-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+    <link rel="stylesheet" href="/assets/site.css">
+  </head>
+  <body class="home-page">
+    <header class="site-header" aria-label="Primary">
+      <a class="brand" href="/" aria-label="Workspace Terminal home">
+        <img src="/assets/app-icon.png" width="36" height="36" alt="">
+        <span>Workspace Terminal</span>
+      </a>
+      <nav aria-label="Site">
+        <a href="#features">Features</a>
+        <a href="#privacy">Privacy</a>
+        <a href="/privacy/">Policy</a>
+        <a href="https://github.com/dizys/workspace-terminal-ios">GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-bg-pattern" aria-hidden="true"></div>
+
+        <div class="hero-inner">
+          <div class="hero-copy">
+            <p class="eyebrow">Native terminal for Coder workspaces</p>
+            <h1 id="hero-title">A real shell for iPhone&nbsp;and&nbsp;iPad.</h1>
+            <p class="lede">Connect to your Coder deployment, jump into a workspace, and keep moving with terminal keys, reconnecting sessions, and iPad layouts built for development.</p>
+            <div class="actions">
+              <a class="button primary" href="https://github.com/dizys/workspace-terminal-ios">View on GitHub</a>
+              <a class="button secondary" href="/privacy/">Privacy policy</a>
+            </div>
+          </div>
+
+          <div class="terminal-scene" aria-hidden="true">
+            <div class="device-shell">
+              <div class="device-bar">
+                <span></span><span></span><span></span>
+                <strong>prod-api &middot; zsh</strong>
+              </div>
+              <div class="terminal-lines">
+                <p><b>$</b> coder list</p>
+                <p><span class="ok">RUNNING</span> ios-api <em>1 agent &middot; 4 ports</em></p>
+                <p><b>$</b> pnpm test --watch</p>
+                <p><span class="accent">PASS</span> packages/coder-api/client.spec.ts</p>
+                <p><b>$</b> git status --short</p>
+                <p><span class="warn">M</span> Sources/AppFeature/SignedInRootView.swift</p>
+                <p><b>$</b> open :5173</p>
+                <p><span class="ok">PORT</span> Vite dev server forwarded</p>
+              </div>
+              <div class="keybar">
+                <span>Esc</span><span>Tab</span><span>Ctrl</span><span>Alt</span><span>/</span><span>|</span><span>&larr;</span><span>&rarr;</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="proof-strip" aria-label="Highlights">
+        <div>
+          <strong>Zero telemetry</strong>
+          <span>No analytics SDKs or tracking by default.</span>
+        </div>
+        <div>
+          <strong>Keychain storage</strong>
+          <span>Deployment tokens stay on device.</span>
+        </div>
+        <div>
+          <strong>Self-hosted ready</strong>
+          <span>Custom Coder URLs, OIDC, and local trust.</span>
+        </div>
+      </section>
+
+      <section class="section" id="features" aria-labelledby="features-title">
+        <div class="section-heading">
+          <p class="eyebrow">Built for mobile work</p>
+          <h2 id="features-title">The terminal pieces that web&nbsp;views miss.</h2>
+        </div>
+        <div class="feature-grid">
+          <article class="feature">
+            <div class="feature-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            </div>
+            <span class="feature-kicker">Terminal</span>
+            <h3>ANSI color, Unicode, and Nerd Font glyphs</h3>
+            <p>SwiftTerm rendering with JetBrains Mono Nerd Font support keeps shells, prompts, tmux, and editor UIs readable on small screens.</p>
+          </article>
+          <article class="feature">
+            <div class="feature-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M8 12h8M6 16h12"/></svg>
+            </div>
+            <span class="feature-kicker">Keys</span>
+            <h3>Esc, Tab, Ctrl, Alt, arrows, and shell punctuation</h3>
+            <p>A floating key bar fills the gaps left by the iOS keyboard while hardware keyboard shortcuts stay first-class on iPad.</p>
+          </article>
+          <article class="feature">
+            <div class="feature-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg>
+            </div>
+            <span class="feature-kicker">Sessions</span>
+            <h3>Tabs that survive app navigation</h3>
+            <p>Multiple terminal sessions per workspace stay attached as you move between workspace details, settings, and other apps.</p>
+          </article>
+          <article class="feature">
+            <div class="feature-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            </div>
+            <span class="feature-kicker">Ports</span>
+            <h3>Workspace services within reach</h3>
+            <p>Discover listening ports from Coder agents and open dev servers, notebooks, dashboards, and internal UIs from the device.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="workstation" aria-labelledby="workstation-title">
+        <div>
+          <p class="eyebrow">iPad workstation mode</p>
+          <h2 id="workstation-title">Side-by-side terminal, workspace&nbsp;detail, and&nbsp;forwarded&nbsp;ports.</h2>
+        </div>
+        <div class="workspace-layout" aria-hidden="true">
+          <div class="sidebar">
+            <span class="pill running">running</span>
+            <strong>ios-api</strong>
+            <span>main &middot; 2h active</span>
+            <strong>docs-site</strong>
+            <span>stopped</span>
+            <strong>payments</strong>
+            <span>starting</span>
+          </div>
+          <div class="pane terminal-pane">
+            <span>$ swift test --parallel</span>
+            <span class="accent">Test Suite passed</span>
+            <span>$ git push origin app-store-site</span>
+          </div>
+          <div class="pane browser-pane">
+            <span>5173</span>
+            <strong>Vite</strong>
+            <p>Ready in 312 ms</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section privacy-band" id="privacy" aria-labelledby="privacy-title">
+        <div class="section-heading">
+          <p class="eyebrow">Privacy posture</p>
+          <h2 id="privacy-title">Your Coder deployment is&nbsp;yours.</h2>
+        </div>
+        <div class="privacy-copy">
+          <p>Workspace Terminal connects from your device to the deployment URL you provide. The app does not run a hosted account service, does not collect analytics, and does not log terminal contents.</p>
+          <a class="inline-link" href="/privacy/">Read the full privacy policy</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>Workspace Terminal is an unofficial third-party app and is not affiliated with Coder Technologies, Inc.</span>
+      <nav aria-label="Footer">
+        <a href="/privacy/">Privacy</a>
+        <a href="https://github.com/dizys/workspace-terminal-ios/issues">Support</a>
+        <a href="https://github.com/dizys/workspace-terminal-ios/blob/main/LICENSE">AGPL-3.0</a>
+      </nav>
+    </footer>
+  </body>
+</html>
