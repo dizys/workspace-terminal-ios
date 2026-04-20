@@ -131,7 +131,6 @@ h1, h2, h3, p { overflow-wrap: break-word; }
 
 .brand img {
   flex: 0 0 auto;
-  border-radius: 10px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
