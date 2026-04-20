@@ -88,6 +88,7 @@ public struct WorkspaceListView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+        .tint(.clear)
     }
 }
 

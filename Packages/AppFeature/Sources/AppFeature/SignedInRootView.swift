@@ -397,6 +397,25 @@ private struct AboutCard: View {
                     url: "https://github.com/dizys/workspace-terminal-ios/issues"
                 )
                 Divider().background(WTColor.border)
+                NavigationLink {
+                    LicensesView()
+                } label: {
+                    HStack(spacing: WTSpace.md) {
+                        Image(systemName: "doc.text")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(WTColor.textTertiary)
+                            .frame(width: 32, height: 32)
+                        Text("Open Source Licenses")
+                            .font(WTFont.bodyEmphasized)
+                            .foregroundStyle(WTColor.textPrimary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(WTColor.textTertiary)
+                    }
+                }
+                .buttonStyle(.plain)
+                Divider().background(WTColor.border)
                 HStack(spacing: WTSpace.md) {
                     Image(systemName: "info.circle")
                         .font(.system(size: 18, weight: .medium))
@@ -432,6 +451,107 @@ private struct AboutCard: View {
         }
         .buttonStyle(.plain)
     }
+}
+
+// MARK: - Open Source Licenses
+
+private struct LicensesView: View {
+    var body: some View {
+        ZStack {
+            WTColor.background.ignoresSafeArea()
+            ScrollView {
+                VStack(spacing: WTSpace.xl) {
+                    ForEach(License.all) { license in
+                        WTCard {
+                            VStack(alignment: .leading, spacing: WTSpace.md) {
+                                Text(license.name)
+                                    .font(WTFont.bodyEmphasized)
+                                    .foregroundStyle(WTColor.textPrimary)
+                                Text(license.licenseType)
+                                    .font(WTFont.caption)
+                                    .foregroundStyle(WTColor.textSecondary)
+                                Divider().background(WTColor.border)
+                                Text(license.text)
+                                    .font(WTFont.monoSmall)
+                                    .foregroundStyle(WTColor.textSecondary)
+                            }
+                        }
+                    }
+                    Spacer(minLength: WTSpace.xl)
+                }
+                .padding(.horizontal, WTSpace.xl)
+                .padding(.top, WTSpace.lg)
+            }
+        }
+        .navigationTitle("Open Source Licenses")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct License: Identifiable {
+    let id: String
+    let name: String
+    let licenseType: String
+    let text: String
+
+    static let all: [License] = [
+        License(
+            id: "swift-composable-architecture",
+            name: "Swift Composable Architecture",
+            licenseType: "MIT License",
+            text: """
+            MIT License
+
+            Copyright (c) 2020 Point-Free, Inc.
+
+            Permission is hereby granted, free of charge, to any person obtaining a copy \
+            of this software and associated documentation files (the "Software"), to deal \
+            in the Software without restriction, including without limitation the rights \
+            to use, copy, modify, merge, publish, distribute, sublicense, and/or sell \
+            copies of the Software, and to permit persons to whom the Software is \
+            furnished to do so, subject to the following conditions:
+
+            The above copyright notice and this permission notice shall be included in all \
+            copies or substantial portions of the Software.
+
+            THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR \
+            IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, \
+            FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE \
+            AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER \
+            LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, \
+            OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE \
+            SOFTWARE.
+            """
+        ),
+        License(
+            id: "swiftterm",
+            name: "SwiftTerm",
+            licenseType: "MIT License",
+            text: """
+            MIT License
+
+            Copyright (c) 2019 Miguel de Icaza
+
+            Permission is hereby granted, free of charge, to any person obtaining a copy \
+            of this software and associated documentation files (the "Software"), to deal \
+            in the Software without restriction, including without limitation the rights \
+            to use, copy, modify, merge, publish, distribute, sublicense, and/or sell \
+            copies of the Software, and to permit persons to whom the Software is \
+            furnished to do so, subject to the following conditions:
+
+            The above copyright notice and this permission notice shall be included in all \
+            copies or substantial portions of the Software.
+
+            THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR \
+            IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, \
+            FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE \
+            AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER \
+            LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, \
+            OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE \
+            SOFTWARE.
+            """
+        ),
+    ]
 }
 
 #endif
