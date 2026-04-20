@@ -26,11 +26,19 @@ public final class TerminalSession: @unchecked Sendable {
         var subscribers: [UUID: AsyncStream<Data>.Continuation] = [:]
         var stateSubscribers: [UUID: AsyncStream<ConnectionState>.Continuation] = [:]
         var latestConnectionState: ConnectionState = .idle
+        var replayDeduper: ReplayDeduper?
         /// Ring buffer of recent PTY bytes — replayed to any new subscriber so
         /// re-mounting the terminal view (e.g. after navigating back) shows
         /// the existing scrollback instead of starting blank. 64 KiB matches
         /// Coder's own server-side reconnecting-PTY buffer.
         var scrollback = Data()
+
+        mutating func removeReconnectReplayDuplicate(from chunk: Data) -> Data {
+            guard var deduper = replayDeduper else { return chunk }
+            let filtered = deduper.removeDuplicatePrefix(from: chunk)
+            replayDeduper = deduper.isFinished ? nil : deduper
+            return filtered
+        }
     }
     private static let scrollbackCap = 64 * 1024
     private let locked = OSAllocatedUnfairLock<LockedState>(initialState: LockedState())
@@ -132,14 +140,16 @@ public final class TerminalSession: @unchecked Sendable {
     }
 
     private func broadcast(_ chunk: Data) {
-        let conts: [AsyncStream<Data>.Continuation] = locked.withLock { state in
+        let (chunk, conts): (Data, [AsyncStream<Data>.Continuation]) = locked.withLock { state in
+            let chunk = state.removeReconnectReplayDuplicate(from: chunk)
+            guard !chunk.isEmpty else { return (Data(), []) }
             // Append to scrollback ring buffer, dropping oldest bytes once we
             // exceed the cap.
             state.scrollback.append(chunk)
             if state.scrollback.count > Self.scrollbackCap {
                 state.scrollback.removeFirst(state.scrollback.count - Self.scrollbackCap)
             }
-            return Array(state.subscribers.values)
+            return (chunk, Array(state.subscribers.values))
         }
         for cont in conts { cont.yield(chunk) }
     }
@@ -156,6 +166,9 @@ public final class TerminalSession: @unchecked Sendable {
     private func broadcast(_ connectionState: ConnectionState) {
         let conts: [AsyncStream<ConnectionState>.Continuation] = locked.withLock { state in
             state.latestConnectionState = connectionState
+            if connectionState.startsReconnectAttempt {
+                state.replayDeduper = ReplayDeduper(snapshot: state.scrollback)
+            }
             return Array(state.stateSubscribers.values)
         }
         for cont in conts { cont.yield(connectionState) }
@@ -188,6 +201,62 @@ public final class TerminalSession: @unchecked Sendable {
             }
         }
         #endif
+    }
+}
+
+private extension ConnectionState {
+    var startsReconnectAttempt: Bool {
+        switch self {
+        case let .connecting(attempt):
+            return attempt > 1
+        case .reconnecting:
+            return true
+        case .idle, .connected, .closed:
+            return false
+        }
+    }
+}
+
+private struct ReplayDeduper {
+    private let snapshot: Data
+    private var offset: Int = 0
+    private(set) var isFinished: Bool = false
+
+    init(snapshot: Data) {
+        self.snapshot = snapshot
+        self.isFinished = snapshot.isEmpty
+    }
+
+    mutating func removeDuplicatePrefix(from chunk: Data) -> Data {
+        guard !isFinished, !chunk.isEmpty else { return chunk }
+
+        let matched = commonPrefixCount(chunk, snapshot, snapshotOffset: offset)
+        guard matched > 0 else {
+            isFinished = true
+            return chunk
+        }
+
+        offset += matched
+        if offset >= snapshot.count || matched < min(chunk.count, snapshot.count - (offset - matched)) {
+            isFinished = true
+        }
+
+        guard matched < chunk.count else { return Data() }
+        return Data(chunk.dropFirst(matched))
+    }
+
+    private func commonPrefixCount(_ chunk: Data, _ snapshot: Data, snapshotOffset: Int) -> Int {
+        let maxCount = min(chunk.count, snapshot.count - snapshotOffset)
+        guard maxCount > 0 else { return 0 }
+
+        var matched = 0
+        while matched < maxCount {
+            let chunkByte = chunk[chunk.startIndex + matched]
+            let snapshotByte = snapshot[snapshot.startIndex + snapshotOffset + matched]
+            guard chunkByte == snapshotByte else { break }
+            matched += 1
+        }
+        return matched
     }
 }
 

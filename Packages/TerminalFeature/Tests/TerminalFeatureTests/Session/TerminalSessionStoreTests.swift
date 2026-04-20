@@ -66,6 +66,90 @@ struct TerminalSessionStoreTests {
         var second = session.state.makeAsyncIterator()
         #expect(await second.next() == .connected)
     }
+
+    @Test("TerminalSession suppresses duplicate server replay after reconnect")
+    func sessionSuppressesDuplicateReconnectReplay() async throws {
+        let transport = MockPTYTransport()
+        let session = TerminalSession(id: UUID(), agent: .testAgent, transport: transport)
+        let received = ReceivedChunks()
+        let history = Data("coder$ echo haha\r\nhaha\r\ncoder$ ".utf8)
+        let fresh = Data("echo fresh\r\nfresh\r\ncoder$ ".utf8)
+
+        let consumeTask = Task {
+            for await chunk in session.inbound {
+                await received.append(chunk)
+            }
+        }
+        defer {
+            consumeTask.cancel()
+            Task { await session.close(.userInitiated) }
+        }
+
+        transport.simulateInbound(history)
+        #expect(await eventually { await received.snapshot() == [history] })
+
+        transport.simulateState(.reconnecting(attempt: 2, lastError: nil))
+        try await Task.sleep(nanoseconds: 50_000_000)
+        transport.simulateInbound(history)
+        try await Task.sleep(nanoseconds: 50_000_000)
+        #expect(await received.snapshot() == [history])
+
+        transport.simulateInbound(fresh)
+        #expect(await eventually { await received.snapshot() == [history, fresh] })
+    }
+
+    @Test("TerminalSession allows new bytes after a partial reconnect replay")
+    func sessionAllowsNewBytesAfterPartialReconnectReplay() async throws {
+        let transport = MockPTYTransport()
+        let session = TerminalSession(id: UUID(), agent: .testAgent, transport: transport)
+        let received = ReceivedChunks()
+        let history = Data("history".utf8)
+        let replayWithNewBytes = Data("historynew".utf8)
+        let newBytes = Data("new".utf8)
+
+        let consumeTask = Task {
+            for await chunk in session.inbound {
+                await received.append(chunk)
+            }
+        }
+        defer {
+            consumeTask.cancel()
+            Task { await session.close(.userInitiated) }
+        }
+
+        transport.simulateInbound(history)
+        #expect(await eventually { await received.snapshot() == [history] })
+
+        transport.simulateState(.reconnecting(attempt: 2, lastError: nil))
+        try await Task.sleep(nanoseconds: 50_000_000)
+        transport.simulateInbound(replayWithNewBytes)
+        #expect(await eventually { await received.snapshot() == [history, newBytes] })
+    }
+}
+
+private actor ReceivedChunks {
+    private var chunks: [Data] = []
+
+    func append(_ chunk: Data) {
+        chunks.append(chunk)
+    }
+
+    func snapshot() -> [Data] {
+        chunks
+    }
+}
+
+private func eventually(
+    timeoutNanoseconds: UInt64 = 500_000_000,
+    condition: @escaping () async -> Bool
+) async -> Bool {
+    let interval: UInt64 = 25_000_000
+    let attempts = max(1, Int(timeoutNanoseconds / interval))
+    for _ in 0..<attempts {
+        if await condition() { return true }
+        try? await Task.sleep(nanoseconds: interval)
+    }
+    return await condition()
 }
 
 private extension TerminalSession {
