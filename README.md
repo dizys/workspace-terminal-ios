@@ -74,7 +74,7 @@ Security issues should NOT be filed publicly. Email: see Settings → About → 
 
 Source code is licensed under [GNU AGPL-3.0](LICENSE). You're free to read, fork, modify, self-host, and redistribute under the terms of the AGPL — the same model [Coder itself](https://github.com/coder/coder) uses.
 
-The official binary distribution is sold on the App Store. If you don't want to build from source, the App Store version is the convenient way to get the app installed and updated.
+The official binary distribution is free on the App Store. If you don't want to build from source, the App Store version is the convenient way to get the app installed and updated.
 
 If you build and distribute a modified version (including running it as a service that other people use), AGPL requires that you publish your modifications under AGPL too. Commercial reuse requires a separate license — contact the maintainers.
 

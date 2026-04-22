@@ -4,12 +4,13 @@ Decisions still pending. Resolve before the relevant milestone.
 
 ## Pricing model (resolve before M0 ends)
 
-Two options:
+3 options:
 
 1. **One-time purchase** — e.g. $14.99. Simple, no server, no subscription complexity. Faster to ship. No recurring revenue.
 2. **Subscription** — e.g. $2.99/mo, $24.99/yr. Recurring revenue. Requires receipt validation infra and a "free vs paid" UX decision.
+3. **free**
 
-**Current lean:** one-time purchase for v1. Add an optional Pro subscription later if/when we ship cloud-sync features (themes/settings sync, multi-device session resume).
+**Current lean:** free v1. Add an optional Pro subscription later if/when we ship cloud-sync features (themes/settings sync, multi-device session resume).
 
 ## App identifier and name (resolve before M5)
 
