@@ -19,6 +19,12 @@ struct CloseClassifierTests {
         #expect(CloseClassifier.classify(code: 1001, reason: "Ping failed") == .serverTimeout)
     }
 
+    @Test("going-away (1001) with any reason → serverTimeout (iOS background suspension)")
+    func goingAwayAnyReason() {
+        #expect(CloseClassifier.classify(code: 1001, reason: "") == .serverTimeout)
+        #expect(CloseClassifier.classify(code: 1001, reason: "shutdown") == .serverTimeout)
+    }
+
     @Test("internal error (1011) with 'dial workspace agent' → agentUnreachable")
     func internalErrorDialWorkspaceAgent() {
         let r = CloseClassifier.classify(

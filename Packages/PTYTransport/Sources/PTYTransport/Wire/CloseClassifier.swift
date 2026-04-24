@@ -11,7 +11,11 @@ enum CloseClassifier {
         switch code {
         case 1000:
             return .userInitiated
-        case 1001 where reason.localizedCaseInsensitiveContains("ping"):
+        case 1001:
+            // "Going away" — server is shutting the connection because we
+            // missed pings (typically because iOS suspended the URLSession
+            // WebSocket task in the background). Always reconnectable; the
+            // Coder server keeps the reconnecting-PTY ring buffer for ~5min.
             return .serverTimeout
         case 1011:
             // Coder's PTY handler emits two distinct dial-failure messages,

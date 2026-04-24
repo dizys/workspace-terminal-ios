@@ -220,14 +220,41 @@ public actor LivePTYTransport: PTYTransport {
             if let data = task.closeReason, let s = String(data: data, encoding: .utf8) { return s }
             return ""
         }()
-        let reason = code == 0
-            ? CloseReason.fatal(code: 0, reason: error.localizedDescription)
-            : CloseClassifier.classify(code: code, reason: reasonString)
+        let reason: CloseReason
+        if code == 0 {
+            // No close frame — pure network failure. Most often this is iOS
+            // suspending the WS task in the background, then URLSession
+            // surfacing it as `cancelled` or `networkConnectionLost` when we
+            // try to receive. Treat these as transient and reconnectable; the
+            // Coder server still holds the reconnecting-PTY ring buffer.
+            if isTransientNetworkError(error) {
+                reason = .serverTimeout
+            } else {
+                reason = .fatal(code: 0, reason: error.localizedDescription)
+            }
+        } else {
+            reason = CloseClassifier.classify(code: code, reason: reasonString)
+        }
 
         if shouldReconnect(after: reason) {
             scheduleReconnect(after: reason)
         } else {
             finishWithReason(reason)
+        }
+    }
+
+    private func isTransientNetworkError(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        guard nsError.domain == NSURLErrorDomain else { return false }
+        switch nsError.code {
+        case NSURLErrorCancelled,
+             NSURLErrorNetworkConnectionLost,
+             NSURLErrorNotConnectedToInternet,
+             NSURLErrorTimedOut,
+             NSURLErrorBackgroundSessionWasDisconnected:
+            return true
+        default:
+            return false
         }
     }
 
