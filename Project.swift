@@ -41,7 +41,7 @@ let project = Project(
             infoPlist: .extendingDefault(with: [
                 "CFBundleDisplayName": "Workspace Terminal",
                 "CFBundleShortVersionString": "1.0.0",
-                "CFBundleVersion": "1",
+                "CFBundleVersion": "2",
                 "UILaunchScreen": [:],
                 "UISupportedInterfaceOrientations": [
                     "UIInterfaceOrientationPortrait",
