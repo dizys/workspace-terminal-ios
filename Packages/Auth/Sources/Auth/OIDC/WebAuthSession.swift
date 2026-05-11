@@ -1,6 +1,7 @@
 #if canImport(WebKit) && os(iOS)
 import CoderAPI
 import Foundation
+import SafariServices
 import UIKit
 import WebKit
 
@@ -23,8 +24,9 @@ import WebKit
 /// 4. We construct a synthetic `workspaceterminal://auth/callback?session_token=<token>`
 ///    URL and resolve `OIDCFlow.AuthSession.start`'s continuation.
 /// 5. **Fallback:** if scraping fails (DOM changed, token not visible), the
-///    user can tap "Paste token" in the navigation bar, copy the token via
-///    Coder's own "Copy session token" button, and paste it into a sheet.
+///    user can either tap "Paste token" in the navigation bar or open the
+///    same flow in Safari for passkey/WebAuthn support, copy Coder's short-
+///    lived session token, and hand it back to the app.
 /// 6. If the user dismisses without resolving, we throw `.userCanceled`.
 public final class LiveWebAuthSession: NSObject, OIDCFlow.AuthSession, @unchecked Sendable {
     public let presentationAnchor: @MainActor () -> UIWindow
@@ -51,29 +53,13 @@ public final class LiveWebAuthSession: NSObject, OIDCFlow.AuthSession, @unchecke
     }
 }
 
-/// A Coder session token has the exact shape `<10-char-id>-<22-char-secret>`,
-/// both halves alphanumeric. Coder's server validates these lengths
-/// strictly — a 13-char id, for example, is rejected with "invalid API
-/// key ID length, expected 10".
-///
-/// Public so the OIDCFlow layer + tests can share the same definition.
-public enum CoderTokenFormat {
-    /// Strict pattern matching Coder's own validation. Anchored to the
-    /// whole string so substring matches don't leak through.
-    public static let pattern = #"^[A-Za-z0-9]{10}-[A-Za-z0-9]{22}$"#
-
-    public static func isValid(_ value: String) -> Bool {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.range(of: pattern, options: .regularExpression) != nil
-    }
-}
-
 @MainActor
 private final class WebAuthViewController: UIViewController, WKScriptMessageHandler, WKNavigationDelegate {
     private let authURL: URL
     private let continuation: CheckedContinuation<URL, Error>
     private var webView: WKWebView!
     private var resolved = false
+    private lazy var safariDelegate = SafariDelegateProxy(owner: self)
 
     init(authURL: URL, continuation: CheckedContinuation<URL, Error>) {
         self.authURL = authURL
@@ -93,12 +79,20 @@ private final class WebAuthViewController: UIViewController, WKScriptMessageHand
             target: self,
             action: #selector(cancelTapped)
         )
-        navigationItem.rightBarButtonItem = UIBarButtonItem(
-            title: "Paste token",
-            style: .plain,
-            target: self,
-            action: #selector(pasteTokenTapped)
-        )
+        navigationItem.rightBarButtonItems = [
+            UIBarButtonItem(
+                title: "Paste token",
+                style: .plain,
+                target: self,
+                action: #selector(pasteTokenTapped)
+            ),
+            UIBarButtonItem(
+                title: "Safari",
+                style: .plain,
+                target: self,
+                action: #selector(openInSafariTapped)
+            ),
+        ]
 
         let config = WKWebViewConfiguration()
         let contentController = WKUserContentController()
@@ -127,7 +121,7 @@ private final class WebAuthViewController: UIViewController, WKScriptMessageHand
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
-        if !resolved {
+        if !resolved, isBeingDismissedOrPopped {
             resolved = true
             continuation.resume(throwing: OIDCFlow.OIDCError.userCanceled)
         }
@@ -170,6 +164,23 @@ private final class WebAuthViewController: UIViewController, WKScriptMessageHand
         present(alert, animated: true)
     }
 
+    @objc private func openInSafariTapped() {
+        let alert = UIAlertController(
+            title: "Use Safari for passkeys",
+            message: "If your identity provider requires a passkey or security key, continue in Safari. After Coder shows the session token, tap 'Copy session token', return here, then use 'Paste token'.",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Open Safari", style: .default) { [weak self] _ in
+            guard let self else { return }
+            let safari = SFSafariViewController(url: self.authURL)
+            safari.dismissButtonStyle = .close
+            safari.delegate = self.safariDelegate
+            self.present(safari, animated: true)
+        })
+        present(alert, animated: true)
+    }
+
     private func showInvalidTokenAlert() {
         let alert = UIAlertController(
             title: "That doesn't look like a session token",
@@ -177,6 +188,25 @@ private final class WebAuthViewController: UIViewController, WKScriptMessageHand
             preferredStyle: .alert
         )
         alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
+    }
+
+    fileprivate func offerClipboardTokenIfAvailable() {
+        guard !resolved,
+              presentedViewController == nil,
+              let clipboard = UIPasteboard.general.string?.trimmingCharacters(in: .whitespacesAndNewlines),
+              CoderTokenFormat.isValid(clipboard)
+        else { return }
+
+        let alert = UIAlertController(
+            title: "Use copied session token?",
+            message: "A valid Coder session token is on the clipboard. Sign in with it now?",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "Not now", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Sign in", style: .default) { [weak self] _ in
+            self?.deliverToken(clipboard)
+        })
         present(alert, animated: true)
     }
 
@@ -208,6 +238,24 @@ private final class WebAuthViewController: UIViewController, WKScriptMessageHand
             continuation.resume(throwing: OIDCFlow.OIDCError.missingTokenInCallback)
         }
         dismiss(animated: true)
+    }
+
+    private var isBeingDismissedOrPopped: Bool {
+        isBeingDismissed || navigationController?.isBeingDismissed == true || isMovingFromParent
+    }
+}
+
+private final class SafariDelegateProxy: NSObject, SFSafariViewControllerDelegate {
+    weak var owner: WebAuthViewController?
+
+    init(owner: WebAuthViewController) {
+        self.owner = owner
+    }
+
+    func safariViewControllerDidFinish(_ controller: SFSafariViewController) {
+        Task { @MainActor [weak owner] in
+            owner?.offerClipboardTokenIfAvailable()
+        }
     }
 }
 

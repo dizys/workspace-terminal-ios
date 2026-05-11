@@ -15,4 +15,11 @@ struct AuthTests {
     func callbackURLComposed() {
         #expect(Auth.callbackURL.absoluteString == "workspaceterminal://auth/callback")
     }
+
+    #if os(iOS)
+    @Test("Coder token validation trims surrounding whitespace")
+    func tokenValidationTrimsWhitespace() {
+        #expect(CoderTokenFormat.isValid("  abcdef1234-abcdefghijklmnopqrstuv  "))
+    }
+    #endif
 }
